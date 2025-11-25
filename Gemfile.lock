@@ -128,7 +128,7 @@ GEM
     rake (13.3.1)
     random-port (0.7.6)
       tago (~> 0.0)
-    rdoc (6.15.1)
+    rdoc (6.16.0)
       erb
       psych (>= 4.0.0)
       tsort
@@ -178,7 +178,7 @@ GEM
       rack-protection (= 4.2.1)
       rack-session (>= 2.0.0, < 3)
       tilt (~> 2.0)
-    stringio (3.1.7)
+    stringio (3.1.8)
     tago (0.4.0)
     tilt (2.6.1)
     timeout (0.4.3)
@@ -221,7 +221,7 @@ DEPENDENCIES
   rackup (~> 2.2)
   rake (~> 13.2)
   random-port (~> 0.7)
-  rdoc (= 6.15.1)
+  rdoc (= 6.16.0)
   rubocop (~> 1.73)
   rubocop-minitest (~> 0.38)
   rubocop-performance (~> 1.23)
