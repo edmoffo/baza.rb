@@ -756,7 +756,6 @@ class TestBazaRb < Minitest::Test
       host = 'example.org'
       other = 'server2.example.org'
       baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
-      assert_equal(host, baza.instance_variable_get(:@host), 'Initial host should be set')
       stub_request(:get, "https://#{host}:443/file")
         .with(headers: { 'Range' => 'bytes=0-' })
         .to_return(
@@ -765,8 +764,17 @@ class TestBazaRb < Minitest::Test
           headers: { 'X-Zerocracy-Host' => other }
         )
       baza.send(:download, baza.send(:home).append('file'), file)
-      assert_equal(other, baza.instance_variable_get(:@host), 'Host should be updated from header')
       assert_equal('file content', File.read(file), 'File should be downloaded correctly')
+      file2 = File.join(dir, 'test2.txt')
+      stub_request(:get, "https://#{other}:443/file2")
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 200,
+          body: 'second file',
+          headers: {}
+        )
+      baza.send(:download, baza.send(:home).append('file2'), file2)
+      assert_equal('second file', File.read(file2), 'Second request should go to new host')
     end
   end
 
@@ -795,7 +803,6 @@ class TestBazaRb < Minitest::Test
           headers: {}
         )
       baza.send(:download, baza.send(:home).append('file'), file)
-      assert_equal(other, baza.instance_variable_get(:@host), 'Host should switch mid-download')
       assert_equal('first chunk', File.read(file), 'All chunks should be downloaded')
     end
   end
@@ -808,7 +815,6 @@ class TestBazaRb < Minitest::Test
       host = 'example.org'
       other = 'server2.example.org'
       baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
-      assert_equal(host, baza.instance_variable_get(:@host), 'Initial host should be set')
       stub_request(:put, "https://#{host}:443/file")
         .to_return(
           status: 200,
@@ -816,7 +822,12 @@ class TestBazaRb < Minitest::Test
           headers: { 'X-Zerocracy-Host' => other }
         )
       baza.send(:upload, baza.send(:home).append('file'), file)
-      assert_equal(other, baza.instance_variable_get(:@host), 'Host should be updated from header')
+      stub_request(:put, "https://#{other}:443/file2")
+        .to_return(
+          status: 200,
+          body: 'OK'
+        )
+      baza.send(:upload, baza.send(:home).append('file2'), file)
     end
   end
 
@@ -850,7 +861,6 @@ class TestBazaRb < Minitest::Test
           headers: {}
         )
       baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
-      assert_equal(other, baza.instance_variable_get(:@host), 'Host should switch mid-upload')
     end
   end
 
