@@ -7,6 +7,7 @@ require 'base64'
 require 'elapsed'
 require 'fileutils'
 require 'iri'
+require 'logger'
 require 'loog'
 require 'retries'
 require 'stringio'
@@ -79,7 +80,7 @@ class BazaRb
   # @raise [ServerFailure] If authentication fails or server returns an error
   def whoami
     nick = nil
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('whoami'))
       nick = ret.body
       throw :"I know that I am @#{nick}, at #{@host}"
@@ -93,7 +94,7 @@ class BazaRb
   # @raise [ServerFailure] If authentication fails or server returns an error
   def balance
     z = nil
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('account').append('balance'))
       z = ret.body.to_f
       throw :"The balance is Ƶ#{z}, at #{@host}"
@@ -103,7 +104,7 @@ class BazaRb
 
   # Push factbase to the server to create a new job.
   #
-  # @param [String] name The unique name of the product on the server
+  # @param [String] pname The unique name of the product on the server
   # @param [String] data The binary data to push to the server (factbase content)
   # @param [Array<String>] meta List of metadata strings to attach to the job
   # @param [Integer] chunk_size Maximum size of one chunk
@@ -113,7 +114,7 @@ class BazaRb
     raise 'The "name" of the job may not be empty' if pname.empty?
     raise 'The "data" of the job is nil' if data.nil?
     raise 'The "meta" of the job is nil' if meta.nil?
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|
         File.binwrite(file.path, data)
         upload(
@@ -138,7 +139,7 @@ class BazaRb
     raise 'The ID of the job is nil' if id.nil?
     raise 'The ID of the job must be a positive integer' unless id.positive?
     data = ''
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|
         download(home.append('pull').append("#{id}.fb"), file.path)
         data = File.binread(file)
@@ -157,7 +158,7 @@ class BazaRb
     raise 'The ID of the job is nil' if id.nil?
     raise 'The ID of the job must be a positive integer' unless id.positive?
     fin = false
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('finished').append(id))
       fin = ret.body == 'yes'
       throw :"The job ##{id} is #{'not yet ' unless fin}finished at #{@host}#{" (#{ret.body.inspect})" unless fin}"
@@ -174,7 +175,7 @@ class BazaRb
     raise 'The ID of the job is nil' if id.nil?
     raise 'The ID of the job must be a positive integer' unless id.positive?
     stdout = ''
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('stdout').append("#{id}.txt"))
       stdout = ret.body
       throw :"The stdout of the job ##{id} has #{stdout.split("\n").count} lines"
@@ -191,7 +192,7 @@ class BazaRb
     raise 'The ID of the job is nil' if id.nil?
     raise 'The ID of the job must be a positive integer' unless id.positive?
     code = 0
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('exit').append("#{id}.txt"))
       code = ret.body.to_i
       throw :"The exit code of the job ##{id} is #{code}"
@@ -208,7 +209,7 @@ class BazaRb
     raise 'The ID of the job is nil' if id.nil?
     raise 'The ID of the job must be a positive integer' unless id.positive?
     verdict = ''
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('jobs').append(id).append('verified.txt'))
       verdict = ret.body
       throw :"The verdict of the job ##{id} is #{verdict.inspect}"
@@ -226,7 +227,7 @@ class BazaRb
     raise 'The "pname" of the product is nil' if pname.nil?
     raise 'The "pname" of the product may not be empty' if pname.empty?
     raise 'The "owner" of the lock is nil' if owner.nil?
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = post(
         home.append('lock').append(pname),
         { 'owner' => owner },
@@ -247,7 +248,7 @@ class BazaRb
     raise 'The "pname" of the job may not be empty' if pname.empty?
     raise 'The "owner" of the lock is nil' if owner.nil?
     raise 'The "owner" of the lock may not be empty' if owner.empty?
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       post(
         home.append('unlock').append(pname),
         { 'owner' => owner }
@@ -265,7 +266,7 @@ class BazaRb
     raise 'The "name" of the job is nil' if name.nil?
     raise 'The "name" of the job may not be empty' if name.empty?
     job = nil
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('recent').append("#{name}.txt"))
       job = ret.body.to_i
       throw :"The recent \"#{name}\" job's ID is ##{job} at #{@host}"
@@ -275,13 +276,13 @@ class BazaRb
 
   # Check whether the name of the job exists on the server.
   #
-  # @param [String] name The name of the product on the server
+  # @param [String] pname The name of the product on the server
   # @return [Boolean] TRUE if such name exists
   def name_exists?(pname)
     raise 'The "pname" of the product is nil' if pname.nil?
     raise 'The "pname" of the product may not be empty' if pname.empty?
     exists = false
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('exists').append(pname))
       exists = ret.body == 'yes'
       throw :"The name #{pname.inspect} #{exists ? 'exists' : "doesn't exist"} at #{@host}"
@@ -309,7 +310,7 @@ class BazaRb
       raise "The file '#{file}' is too big (#{File.size(file)} bytes) for durable_place(), use durable_save() instead"
     end
     id = nil
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = post(
         home.append('durables').append('place'),
         {
@@ -337,7 +338,7 @@ class BazaRb
     raise 'The ID of the durable must be a positive integer' unless id.positive?
     raise 'The "file" of the durable is nil' if file.nil?
     raise "The file '#{file}' is absent" unless File.exist?(file)
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       upload(home.append('durables').append(id), file, chunk_size:)
       throw :"Durable ##{id} saved #{File.size(file)} bytes to #{@host}"
     end
@@ -353,7 +354,7 @@ class BazaRb
     raise 'The ID of the durable must be an Integer' unless id.is_a?(Integer)
     raise 'The ID of the durable must be a positive integer' unless id.positive?
     raise 'The "file" of the durable is nil' if file.nil?
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       download(home.append('durables').append(id), file)
       throw :"Durable ##{id} loaded #{File.size(file)} bytes from #{@host}"
     end
@@ -370,7 +371,7 @@ class BazaRb
     raise 'The ID of the durable must be a positive integer' unless id.positive?
     raise 'The "owner" of the lock is nil' if owner.nil?
     raise 'The "owner" of the lock may not be empty' if owner.empty?
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       post(
         home.append('durables').append(id).append('lock'),
         { 'owner' => owner }
@@ -390,7 +391,7 @@ class BazaRb
     raise 'The ID of the durable must be a positive integer' unless id.positive?
     raise 'The "owner" of the lock is nil' if owner.nil?
     raise 'The "owner" of the lock may not be empty' if owner.empty?
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       post(
         home.append('durables').append(id).append('unlock'),
         { 'owner' => owner }
@@ -410,7 +411,7 @@ class BazaRb
     raise 'The "file" is nil' if file.nil?
     raise 'The "file" may not be empty' if file.empty?
     id = nil
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('durables').append('find').add(jname: pname, pname:, file:), [200, 404])
       if ret.code == 200
         id = ret.body.to_i
@@ -442,7 +443,7 @@ class BazaRb
       'summary' => summary
     }
     body['job'] = job unless job.nil?
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = post(
         home.append('account').append('transfer'),
         body
@@ -469,7 +470,7 @@ class BazaRb
     raise 'The "job" must be Integer' unless job.is_a?(Integer)
     raise 'The "summary" is nil' if summary.nil?
     id = nil
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       ret = post(
         home.append('account').append('fee'),
         {
@@ -493,7 +494,7 @@ class BazaRb
   # @raise [ServerFailure] If the pop operation fails
   def pop(owner, zip)
     success = false
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       uri = home.append('pop').add(owner:)
       ret = get(uri, [204, 302])
       if ret.code == 204
@@ -520,7 +521,7 @@ class BazaRb
     raise 'The ID of the job must be a positive integer' unless id.positive?
     raise 'The "zip" of the job is nil' if zip.nil?
     raise "The 'zip' file is absent: #{zip}" unless File.exist?(zip)
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       upload(home.append('finish').add(id:), zip)
       throw :"Pushed #{File.size(zip)} bytes to #{@host}, finished job ##{id}"
     end
@@ -532,7 +533,7 @@ class BazaRb
   # for the given badge already exists, it's returned. Otherwise, the block
   # is executed and its result is cached.
   #
-  # @param [String] name Name of the product
+  # @param [String] pname Name of the product
   # @param [String] badge Unique identifier for this valve/computation
   # @param [String] why The reason/description for entering this valve
   # @param [nil|Integer] job Optional job ID to associate with this valve
@@ -571,7 +572,7 @@ class BazaRb
   # @raise [ServerFailure] If token retrieval fails
   def csrf
     token = nil
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       token = get(home.append('csrf')).body
       throw :"CSRF token retrieved (#{token.length} chars)"
     end
@@ -826,7 +827,7 @@ class BazaRb
     FileUtils.touch(file)
     chunk = 0
     blanks = [204, 302]
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       loop do
         slice = ''
         ret = nil
@@ -912,7 +913,7 @@ class BazaRb
     total = File.size(file)
     chunk = 0
     sent = 0
-    elapsed(@loog) do
+    elapsed(@loog, level: Logger::INFO) do
       loop do
         slice =
           if total > chunk_size
