@@ -71,7 +71,6 @@ class BazaRb
     @retries = retries
     @pause = pause
     @compress = compress
-    @host_mutex = Mutex.new
   end
 
   # Get GitHub login name of the logged in user.
@@ -592,14 +591,11 @@ class BazaRb
     return uri unless sticky
     return uri unless hostname?(sticky)
     new_host = sticky.strip.chomp('.')
-    @host_mutex.synchronize do
-      if new_host != @host
-        @loog.debug("Switching host from #{@host} to #{new_host} as per X-Zerocracy-Host")
-        @host = new_host
-      end
-      uri = uri.host(@host)
+    if new_host != @host
+      @loog.debug("Switching host from #{@host} to #{new_host} as per X-Zerocracy-Host")
+      @host = new_host
     end
-    uri
+    uri.host(@host)
   end
 
   # Validate hostname format according to RFC 1123.
