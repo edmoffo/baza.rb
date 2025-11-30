@@ -749,6 +749,121 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_download_sticks_host
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'test.txt')
+      host = 'example.org'
+      other = 'server2.example.org'
+      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
+      stub_request(:get, "https://#{host}:443/file")
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 200,
+          body: 'file content',
+          headers: { 'X-Zerocracy-Host' => other }
+        )
+      baza.send(:download, baza.send(:home).append('file'), file)
+      assert_equal('file content', File.read(file), 'File should be downloaded correctly')
+      file2 = File.join(dir, 'test2.txt')
+      stub_request(:get, "https://#{other}:443/file2")
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 200,
+          body: 'second file',
+          headers: {}
+        )
+      baza.send(:download, baza.send(:home).append('file2'), file2)
+      assert_equal('second file', File.read(file2), 'Second request should go to new host')
+    end
+  end
+
+  def test_download_switches_host_mid_range
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'chunked.txt')
+      host = 'example.org'
+      other = 'server2.example.org'
+      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
+      stub_request(:get, "https://#{host}:443/file")
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(
+          status: 206,
+          body: 'first ',
+          headers: {
+            'X-Zerocracy-Host' => other,
+            'Content-Range' => 'bytes 0-5/11'
+          }
+        )
+      stub_request(:get, "https://#{other}:443/file")
+        .with(headers: { 'Range' => 'bytes=6-' })
+        .to_return(
+          status: 200,
+          body: 'chunk',
+          headers: {}
+        )
+      baza.send(:download, baza.send(:home).append('file'), file)
+      assert_equal('first chunk', File.read(file), 'All chunks should be downloaded')
+    end
+  end
+
+  def test_upload_sticks_host
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'upload.txt')
+      File.write(file, 'test data')
+      host = 'example.org'
+      other = 'server2.example.org'
+      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
+      stub_request(:put, "https://#{host}:443/file")
+        .to_return(
+          status: 200,
+          body: 'OK',
+          headers: { 'X-Zerocracy-Host' => other }
+        )
+      baza.send(:upload, baza.send(:home).append('file'), file)
+      stub_request(:put, "https://#{other}:443/file2")
+        .to_return(
+          status: 200,
+          body: 'OK'
+        )
+      baza.send(:upload, baza.send(:home).append('file2'), file)
+    end
+  end
+
+  def test_upload_switches_host_mid_chunks
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'large.txt')
+      File.write(file, 'x' * 2_000_000)
+      host = 'example.org'
+      other = 'server2.example.org'
+      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
+      stub_request(:put, "https://#{host}:443/file")
+        .with(headers: { 'X-Zerocracy-Chunk' => '0' })
+        .to_return(
+          status: 200,
+          body: 'OK',
+          headers: { 'X-Zerocracy-Host' => other }
+        )
+      stub_request(:put, "https://#{other}:443/file")
+        .with(headers: { 'X-Zerocracy-Chunk' => '1' })
+        .to_return(
+          status: 200,
+          body: 'OK',
+          headers: {}
+        )
+      stub_request(:put, "https://#{other}:443/file")
+        .with(headers: { 'X-Zerocracy-Chunk' => '2' })
+        .to_return(
+          status: 200,
+          body: 'OK',
+          headers: {}
+        )
+      baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
+    end
+  end
+
   private
 
   def with_sinatra_server
