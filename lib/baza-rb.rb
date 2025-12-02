@@ -724,11 +724,17 @@ class BazaRb
     msg += " (#{details.join(', ')})" unless details.empty?
     case ret.code
     when 500, 503
-      msg += ", most probably it's an internal error on the server, please report this to https://github.com/zerocracy/baza.rb"
+      msg +=
+        ", most probably it's an internal error on the server, " \
+        'please report this to https://github.com/zerocracy/baza.rb'
     when 404
-      msg += ", most probably you are trying to reach a wrong server, which doesn't have the expected URL"
+      msg +=
+        ", most probably you are trying to reach a wrong server, which doesn't " \
+        'have the URL that it is expected to have'
     when 0
-      msg += ", most likely a connection failure, timeout, or SSL error (r:#{ret.return_code}, m:#{ret.return_message})"
+      msg +=
+        ', most likely a connection failure, timeout, or SSL error ' \
+        "(r:#{ret.return_code}, m:#{ret.return_message})"
     end
     @loog.error(msg)
     raise ServerFailure, msg
