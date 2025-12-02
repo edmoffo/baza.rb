@@ -708,20 +708,19 @@ class BazaRb
     end
     headers = ret.headers || {}
     if headers.any?
-      headers_log = headers.map { |k, v| "  #{k}: #{v}" }.join("\n")
-      @loog.debug("#{log}\n#{headers_log}")
-      @loog.error("#{log}\n#{headers_log}")
+      @loog.error(
+        "#{log}\n" +
+        headers.map { |k, v| "  #{k}: #{v}" }.join("\n")
+      )
     else
-      @loog.debug("#{log}\n  (no headers returned)")
       @loog.error("#{log}\n  (no headers returned)")
     end
-    info = []
-    info << "X-Zerocracy-Failure=#{headers['X-Zerocracy-Failure'].inspect}" if headers['X-Zerocracy-Failure']
-    if headers['X-Zerocracy-FailureMark']
-      info << "X-Zerocracy-FailureMark=#{headers['X-Zerocracy-FailureMark'].inspect}"
-    end
-    details = info.empty? ? '' : " (#{info.join(', ')})"
-    msg = "Invalid response code ##{ret.code} at #{mtd} #{url}#{details}"
+    details = [
+      ("Flash: #{headers['X-Zerocracy-Flash']}" if headers['X-Zerocracy-Flash']),
+      ("Failure: #{headers['X-Zerocracy-Failure']}" if headers['X-Zerocracy-Failure']),
+      ("FailureMark: #{headers['X-Zerocracy-FailureMark']}" if headers['X-Zerocracy-FailureMark'])
+    ].compact
+    msg = "Invalid response code ##{ret.code} at #{mtd} #{url}#{details.empty? ? '' : " (#{details.join(', ')})"}"
     case ret.code
     when 500, 503
       msg += ", most probably it's an internal error on the server, please report this to https://github.com/zerocracy/baza.rb"
