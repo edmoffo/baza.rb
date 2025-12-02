@@ -720,7 +720,8 @@ class BazaRb
       ("Failure: #{headers['X-Zerocracy-Failure']}" if headers['X-Zerocracy-Failure']),
       ("FailureMark: #{headers['X-Zerocracy-FailureMark']}" if headers['X-Zerocracy-FailureMark'])
     ].compact
-    msg = "Invalid response code ##{ret.code} at #{mtd} #{url}#{details.empty? ? '' : " (#{details.join(', ')})"}"
+    msg = "Invalid response code ##{ret.code} at #{mtd} #{url}"
+    msg += " (#{details.join(', ')})" unless details.empty?
     case ret.code
     when 500, 503
       msg += ", most probably it's an internal error on the server, please report this to https://github.com/zerocracy/baza.rb"
