@@ -606,7 +606,7 @@ class TestBazaRb < Minitest::Test
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 500)
+      .to_return(status: 500, headers: { 'X-Zerocracy-Failure' => 'Boom-500', 'X-Zerocracy-FailureMark' => 'mark-500' })
     error =
       assert_raises(BazaRb::ServerFailure) do
         fake_baza.send(
@@ -616,13 +616,21 @@ class TestBazaRb < Minitest::Test
       end
     assert_includes(error.message, 'Invalid response code #500')
     assert_includes(error.message, "most probably it's an internal error on the server")
+    assert_includes(error.message, 'Boom-500')
+    assert_includes(error.message, 'mark-500')
   end
 
   def test_checked_with_503_error
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 503, headers: { 'X-Zerocracy-Failure' => 'Service unavailable' })
+      .to_return(
+        status: 503,
+        headers: {
+          'X-Zerocracy-Failure' => 'Service unavailable',
+          'X-Zerocracy-FailureMark' => 'mark-503'
+        }
+      )
     error =
       assert_raises(BazaRb::ServerFailure) do
         fake_baza.send(
@@ -633,6 +641,7 @@ class TestBazaRb < Minitest::Test
     assert_includes(error.message, 'Invalid response code #503')
     assert_includes(error.message, "most probably it's an internal error on the server")
     assert_includes(error.message, 'Service unavailable')
+    assert_includes(error.message, 'mark-503')
   end
 
   def test_checked_with_404_error
