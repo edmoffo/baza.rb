@@ -73,7 +73,8 @@ GEM
     logger (1.7.0)
     loog (0.6.1)
       logger (~> 1.0)
-    minitest (5.27.0)
+    minitest (6.0.0)
+      prism (~> 1.5)
     minitest-reporters (1.7.1)
       ansi
       builder
@@ -211,7 +212,7 @@ DEPENDENCIES
   base64 (~> 0.3)
   baza.rb!
   factbase (~> 0.16)
-  minitest (~> 5.25)
+  minitest (~> 6.0)
   minitest-reporters (~> 1.7)
   online (~> 0.1)
   os (~> 1.1)
