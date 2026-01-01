@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025 Zerocracy
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Zerocracy
 # SPDX-License-Identifier: MIT
 
 require 'factbase'
@@ -19,7 +19,7 @@ require_relative 'version'
 #   assert_equal 42, baza.push('test-job', 'data', [])
 #
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
-# Copyright:: Copyright (c) 2024-2025 Yegor Bugayenko
+# Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class BazaRb::Fake
   # Get GitHub login name of the logged in user.

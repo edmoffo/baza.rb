@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025 Zerocracy
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 Zerocracy
 # SPDX-License-Identifier: MIT
 
 require 'base64'
@@ -29,7 +29,7 @@ require_relative 'baza-rb/version'
 #   puts baza.balance       # => 100.5
 #
 # Author:: Yegor Bugayenko (yegor256@gmail.com)
-# Copyright:: Copyright (c) 2024-2025 Yegor Bugayenko
+# Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class BazaRb
   # How big are the chunks we send, by default, in bytes.
