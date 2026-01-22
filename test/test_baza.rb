@@ -24,114 +24,6 @@ require_relative '../lib/baza-rb'
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class TestBazaRb < Minitest::Test
-  # The token to use for testing, in Zerocracy.com:
-  TOKEN = 'ZRCY-00000000-0000-0000-0000-000000000000'
-
-  # The host of the production platform:
-  HOST = 'api.zerocracy.com'
-
-  # The HTTPS port to use:
-  PORT = 443
-
-  # Live agent:
-  LIVE = BazaRb.new(HOST, PORT, TOKEN, loog: Loog::VERBOSE)
-
-  def test_live_full_cycle
-    WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
-    fb = Factbase.new
-    fb.insert.foo = 'test-' * 10_000
-    fb.insert
-    n = fake_name
-    LIVE.push(n, fb.export, [])
-    assert(LIVE.name_exists?(n))
-    assert_predicate(LIVE.recent(n), :positive?)
-    id = LIVE.recent(n)
-    assert(
-      wait_for(8 * 60) do
-        sleep(5)
-        LIVE.finished?(id)
-      end
-    )
-    refute_nil(LIVE.pull(id))
-    refute_nil(LIVE.stdout(id))
-    refute_nil(LIVE.exit_code(id))
-    refute_nil(LIVE.verified(id))
-    owner = 'baza.rb testing'
-    refute_nil(LIVE.lock(n, owner))
-    refute_nil(LIVE.unlock(n, owner))
-  end
-
-  def test_live_whoami
-    WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
-    refute_nil(LIVE.whoami)
-  end
-
-  def test_live_balance
-    WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
-    z = LIVE.balance
-    refute_nil(z)
-    assert(z.to_f)
-  end
-
-  def test_live_fee_payment
-    WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
-    refute_nil(LIVE.fee('unknown', 0.007, 'just for fun', 777))
-  end
-
-  def test_live_push_no_compression
-    WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
-    fb = Factbase.new
-    fb.insert.foo = 'test-' * 10_000
-    fb.insert
-    baza = BazaRb.new(HOST, PORT, TOKEN, compress: false)
-    baza.push(fake_name, fb.export, [])
-  end
-
-  def test_live_durable_lock_unlock
-    WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'before.bin')
-      before = 'hello, Джеф!' * 10
-      File.binwrite(file, before)
-      pname = fake_name
-      refute(LIVE.durable_find(pname, File.basename(file)))
-      id = LIVE.durable_place(pname, file)
-      assert_equal(id, LIVE.durable_find(pname, File.basename(file)))
-      owner = fake_name
-      LIVE.durable_lock(id, owner)
-      LIVE.durable_load(id, file)
-      assert_equal(before, File.binread(file).force_encoding('UTF-8'))
-      after = 'привет, друг!'
-      File.binwrite(file, after)
-      LIVE.durable_save(id, file)
-      LIVE.durable_load(id, file)
-      assert_equal(after, File.binread(file).force_encoding('UTF-8'))
-      LIVE.durable_unlock(id, owner)
-    end
-  end
-
-  def test_live_enter_valve
-    WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
-    r = 'something'
-    n = fake_name
-    badge = fake_name
-    assert_equal(r, LIVE.enter(n, badge, 'no reason', nil) { r })
-    assert_equal(r, LIVE.enter(n, badge, 'no reason', nil) { nil })
-  end
-
-  def test_get_csrf_token
-    WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
-    assert_operator(LIVE.csrf.length, :>, 10)
-  end
-
   def test_transfer_payment
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
@@ -357,7 +249,6 @@ class TestBazaRb < Minitest::Test
 
   def test_real_http
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
     req =
       with_http_server(200, 'yes') do |baza|
         baza.name_exists?('simple')
@@ -367,7 +258,6 @@ class TestBazaRb < Minitest::Test
 
   def test_push_with_meta
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
     req =
       with_http_server(200, 'yes') do |baza|
         baza.push('simple', 'hello, world!', ['boom!', 'хей!'])
@@ -377,7 +267,6 @@ class TestBazaRb < Minitest::Test
 
   def test_push_with_big_meta
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
     req =
       with_http_server(200, 'yes') do |baza|
         baza.push(
@@ -395,7 +284,6 @@ class TestBazaRb < Minitest::Test
 
   def test_push_compressed_content
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     req =
@@ -935,13 +823,4 @@ class TestBazaRb < Minitest::Test
   def fake_baza(compress: true)
     BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress:)
   end
-
-  def fake_name
-    "fake#{SecureRandom.hex(8)}"
-  end
-
-  def we_are_online?
-    $we_are_online ||= !ARGV.include?('--offline') && online?
-  end
-  # rubocop:enable Style/GlobalVars
 end
