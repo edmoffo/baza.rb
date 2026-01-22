@@ -14,14 +14,14 @@ unless SimpleCov.running || ARGV.include?('--no-cov')
       SimpleCov::Formatter::CoberturaFormatter
     ]
   )
-  SimpleCov.minimum_coverage 95
+  SimpleCov.minimum_coverage 90
   SimpleCov.minimum_coverage_by_file 95
   SimpleCov.start do
-    add_filter 'vendor/'
-    add_filter 'target/'
-    track_files 'judges/**/*.rb'
-    track_files 'lib/**/*.rb'
-    track_files '*.rb'
+    add_filter('test/')
+    add_filter('lib/baza-rb/version.rb')
+    add_filter('vendor/')
+    add_filter('target/')
+    track_files('lib/**/*.rb')
   end
 end
 

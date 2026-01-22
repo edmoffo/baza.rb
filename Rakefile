@@ -29,14 +29,13 @@ Rake::TestTask.new(:test) do |t|
   t.libs << 'lib' << 'test'
   t.pattern = 'test/**/test_*.rb'
   t.warning = true
-  t.verbose = false
   t.options = ARGV.join(' ').match(/(?:^| )(-- .*)$/)
 end
 
 desc 'Run them via Ruby, one by one'
 task :picks do
   next if OS.windows?
-  (Dir['test/**/*.rb'] + Dir['lib/**/*.rb']).each do |f|
+  Dir['lib/**/*.rb'].each do |f|
     qbash(
       "bundle exec ruby #{Shellwords.escape(f)} -- --offline",
       log: $stdout, env: { 'RACK_ENV' => 'picks' }

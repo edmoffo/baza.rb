@@ -24,6 +24,10 @@ require_relative '../lib/baza-rb'
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class TestBazaRb < Minitest::Test
+  def test_version_is_set
+    assert(BazaRb::VERSION)
+  end
+
   def test_transfer_payment
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
