@@ -311,7 +311,7 @@ class BazaRb
     id = nil
     elapsed(@loog, level: Logger::INFO) do
       ret = post(
-        home.append('durables').append('place'),
+        home.append('durable-place'),
         {
           'pname' => pname,
           'jname' => pname,
@@ -411,7 +411,7 @@ class BazaRb
     raise 'The "file" may not be empty' if file.empty?
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('durables').append('find').add(jname: pname, pname:, file:), [200, 404])
+      ret = get(home.append('durable-find').add(jname: pname, pname:, file:), [200, 404])
       if ret.code == 200
         id = ret.body.to_i
         throw :"Found durable ##{id} for job \"#{pname}\" file \"#{file}\" at #{@host}"
@@ -542,7 +542,7 @@ class BazaRb
   def enter(pname, badge, why, job)
     elapsed(@loog, good: "Entered valve #{badge} to #{pname}") do
       retry_it do
-        ret = get(home.append('valves').append('result').add(badge:), [200, 204])
+        ret = get(home.append('result').add(badge:), [200, 204])
         return ret.body if ret.code == 200
         r = yield
         uri = home.append('valves').append('add')

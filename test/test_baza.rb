@@ -83,7 +83,7 @@ class TestBazaRb < Minitest::Test
     WebMock.disable_net_connect!
     [fake_baza(compress: true), fake_baza(compress: false)].each do |baza|
       stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
-      stub_request(:post, 'https://example.org/durables/place').to_return(
+      stub_request(:post, 'https://example.org/durable-place').to_return(
         status: 302, headers: { 'X-Zerocracy-DurableId' => '42' }
       )
       stub_request(:post, %r{https://example\.org/durables/42/lock})
@@ -444,7 +444,7 @@ class TestBazaRb < Minitest::Test
 
   def test_enter
     WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/valves/result?badge=test-badge')
+    stub_request(:get, 'https://example.org:443/result?badge=test-badge')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
       .to_return(status: 200, body: 'cached result')
     result = fake_baza.enter('test-valve', 'test-badge', 'test reason', 123) { 'new result' }
@@ -453,7 +453,7 @@ class TestBazaRb < Minitest::Test
 
   def test_enter_not_cached
     WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/valves/result?badge=test-badge')
+    stub_request(:get, 'https://example.org:443/result?badge=test-badge')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
       .to_return(status: 204)
     stub_request(:get, 'https://example.org:443/csrf')
@@ -478,7 +478,7 @@ class TestBazaRb < Minitest::Test
 
   def test_durable_find_found
     WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/durables/find?file=test.txt&jname=test-job&pname=test-job')
+    stub_request(:get, 'https://example.org:443/durable-find?file=test.txt&jname=test-job&pname=test-job')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
       .to_return(status: 200, body: '42')
     id = fake_baza.durable_find('test-job', 'test.txt')
@@ -487,7 +487,7 @@ class TestBazaRb < Minitest::Test
 
   def test_durable_find_not_found
     WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/durables/find?file=test.txt&jname=test-job&pname=test-job')
+    stub_request(:get, 'https://example.org:443/durable-find?file=test.txt&jname=test-job&pname=test-job')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
       .to_return(status: 404)
     id = fake_baza.durable_find('test-job', 'test.txt')
