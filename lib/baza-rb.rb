@@ -545,7 +545,7 @@ class BazaRb
         ret = get(home.append('result').add(badge:), [200, 204])
         return ret.body if ret.code == 200
         r = yield
-        uri = home.append('valves').append('add')
+        uri = home.append('valves')
         uri = uri.add(job:) unless job.nil?
         post(
           uri,

@@ -459,7 +459,7 @@ class TestBazaRb < Minitest::Test
     stub_request(:get, 'https://example.org:443/csrf')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
       .to_return(status: 200, body: 'csrf-token')
-    stub_request(:post, 'https://example.org:443/valves/add?job=123')
+    stub_request(:post, 'https://example.org:443/valves?job=123')
       .with(
         headers: { 'X-Zerocracy-Token' => '000' },
         body: {
