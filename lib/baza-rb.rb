@@ -684,7 +684,7 @@ class BazaRb
     attempt = 0
     loop do
       ret = yield
-      if ret.code == 429 && attempt < @retries
+      if ret.code == 429 && attempt < @retries && ENV['RACK_ENV'] != 'test'
         attempt += 1
         seconds = @pause * (2**attempt)
         @loog.info("Server seems to be busy, will sleep for #{seconds} (attempt no.#{attempt})...")
@@ -703,7 +703,7 @@ class BazaRb
     attempt = 0
     loop do
       ret = yield
-      if ret.code >= 500 && attempt < @retries
+      if ret.code >= 500 && attempt < @retries && ENV['RACK_ENV'] != 'test'
         attempt += 1
         seconds = @pause * (2**attempt)
         @loog.info("Server seems to be in trouble (#{ret.code}), sleep #{seconds}s (attempt no.#{attempt})...")

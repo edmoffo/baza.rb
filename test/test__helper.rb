@@ -32,3 +32,5 @@ Minitest.load :minitest_reporter
 require 'webmock/minitest'
 require 'tempfile'
 require 'minitest/autorun'
+
+ENV['RACK_ENV'] = 'test'

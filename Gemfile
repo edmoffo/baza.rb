@@ -12,7 +12,9 @@ gem 'minitest', '~>6.0', require: false
 gem 'minitest-reporters', '~>1.7', require: false
 gem 'online', '~>0.1', require: false
 gem 'os', '~>1.1', require: false
+gem 'activesupport', '~>7.0', require: false
 gem 'pact', '~>1.65', require: false
+gem 'pact-ffi', '0.4.28.0', require: false
 gem 'puma', '~>7.0', require: false
 gem 'qbash', '~>0.4', require: false
 gem 'rack', '~>3.1', require: false

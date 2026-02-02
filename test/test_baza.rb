@@ -6,8 +6,6 @@
 require 'factbase'
 require 'loog'
 require 'securerandom'
-require 'pact/consumer'
-require 'pact/consumer/spec_hooks'
 require_relative 'test__helper'
 require_relative 'pact_helper'
 require_relative '../lib/baza-rb'
@@ -17,23 +15,11 @@ require_relative '../lib/baza-rb'
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class TestBazaRb < Minitest::Test
-  include Pact::Consumer::ConsumerContractBuilders
-
-  HOOKS = Pact::Consumer::SpecHooks.new
-
-  # CSRF token matcher - accepts any non-empty string.
-  CSRF = Pact.term(generate: 'csrf-token-example', matcher: /^.+$/)
-
-  def self.run_one_method(klass, method, reporter)
-    HOOKS.before_all if @pact_started.nil?
-    @pact_started = true
-    super
-  end
+  include PactV2Minitest
 
   Minitest.after_run do
     WebMock.allow_net_connect!
-    HOOKS.after_suite
-    pact = File.join(__dir__, '..', 'bazarb-zerocracy.json')
+    pact = File.join(__dir__, '..', 'BazaRb-Zerocracy.json')
     if File.exist?(pact)
       json = JSON.parse(File.read(pact))
       json['metadata']['client'] = {
@@ -47,11 +33,6 @@ class TestBazaRb < Minitest::Test
 
   def setup
     WebMock.allow_net_connect!
-    HOOKS.before_each(name)
-  end
-
-  def teardown
-    HOOKS.after_each(name)
   end
 
   def test_version_is_set
@@ -59,540 +40,621 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_transfers_payment
-    zerocracy_api
+    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    interaction
       .upon_receiving('a request for CSRF token')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
-      .given('user is logged in')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(status: 200, body: csrf)
+    interaction
+      .given('user is authenticated')
       .upon_receiving('a transfer payment request')
-      .with(
-        method: :post,
+      .with_request(
+        method: 'POST',
         path: '/account/transfer',
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
-          '_csrf' => CSRF,
-          'human' => Pact.term(generate: 'jeff', matcher: /^[a-z0-9-]+$/),
-          'amount' => Pact.term(generate: '42.50', matcher: /^[0-9]+\.[0-9]+$/),
-          'summary' => Pact.term(generate: 'for fun', matcher: /^.+$/)
+          '_csrf' => csrf,
+          'human' => match_regex(/^[a-z0-9-]+$/, 'jeff'),
+          'amount' => match_regex(/^[0-9]+\.[0-9]+$/, '42.500000'),
+          'summary' => match_regex(/^.+$/, 'for fun')
         }
       )
       .will_respond_with(
         status: 302,
-        headers: {
-          'X-Zerocracy-ReceiptId' => Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
-        }
+        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '42') }
       )
-    id = pact_baza.transfer('jeff', 42.50, 'for fun')
-    assert_equal(42, id)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      id = baza.transfer('jeff', 42.50, 'for fun')
+      assert_equal(42, id)
+    end
   end
 
   def test_transfers_payment_with_job
-    zerocracy_api
+    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    interaction
       .upon_receiving('a request for CSRF token')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
-      .given('user is logged in')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(status: 200, body: csrf)
+    interaction
+      .given('user is authenticated')
       .upon_receiving('a transfer payment request with job')
-      .with(
-        method: :post,
+      .with_request(
+        method: 'POST',
         path: '/account/transfer',
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
-          '_csrf' => CSRF,
-          'job' => Pact.term(generate: '555', matcher: /^[0-9]+$/),
-          'human' => Pact.term(generate: 'jeff', matcher: /^[a-z0-9-]+$/),
-          'amount' => Pact.term(generate: '42.50', matcher: /^[0-9]+\.[0-9]+$/),
-          'summary' => Pact.term(generate: 'for fun', matcher: /^.+$/)
+          '_csrf' => csrf,
+          'job' => match_regex(/^[0-9]+$/, '555'),
+          'human' => match_regex(/^[a-z0-9-]+$/, 'jeff'),
+          'amount' => match_regex(/^[0-9]+\.[0-9]+$/, '42.500000'),
+          'summary' => match_regex(/^.+$/, 'for fun')
         }
       )
       .will_respond_with(
         status: 302,
-        headers: {
-          'X-Zerocracy-ReceiptId' => Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
-        }
+        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '42') }
       )
-    id = pact_baza.transfer('jeff', 42.50, 'for fun', job: 555)
-    assert_equal(42, id)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      id = baza.transfer('jeff', 42.50, 'for fun', job: 555)
+      assert_equal(42, id)
+    end
   end
 
   def test_reads_whoami
-    zerocracy_api
-      .given('user is logged in')
+    interaction
+      .given('user is authenticated')
       .upon_receiving('a whoami request')
-      .with(method: :get, path: '/whoami')
+      .with_request(method: 'GET', path: '/whoami')
       .will_respond_with(
         status: 200,
-        body: Pact.term(generate: 'jeff', matcher: /^[a-z0-9-]+$/),
+        body: match_regex(/^[a-z0-9-]+$/, 'jeff'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    assert_equal('jeff', pact_baza.whoami)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert_equal('jeff', baza.whoami)
+    end
   end
 
   def test_reads_balance
-    zerocracy_api
-      .given('user is logged in')
+    interaction
+      .given('user is authenticated')
       .upon_receiving('a balance request')
-      .with(method: :get, path: '/account/balance')
+      .with_request(method: 'GET', path: '/account/balance')
       .will_respond_with(
         status: 200,
-        body: Pact.term(generate: '42.33', matcher: /^[0-9]+\.[0-9]+$/),
+        body: match_regex(/^[0-9]+\.[0-9]+$/, '42.33'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    assert_in_delta(42.33, pact_baza.balance)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert_in_delta(42.33, baza.balance)
+    end
   end
 
   def test_checks_whether_job_is_finished
-    zerocracy_api
-      .given('job #42 exists')
+    interaction
+      .given('job exists', { 'id' => 42 })
       .upon_receiving('a finished check request')
-      .with(
-        method: :get,
-        path: Pact.term(generate: '/finished/42', matcher: %r{^/finished/[1-9][0-9]*$})
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/finished/[1-9][0-9]*$}, '/finished/42')
       )
       .will_respond_with(
         status: 200,
-        body: Pact.term(generate: 'yes', matcher: /^yes|no$/),
+        body: match_regex(/^yes|no$/, 'yes'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    assert(pact_baza.finished?(42))
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert(baza.finished?(42))
+    end
   end
 
   def test_reads_verification_verdict
-    zerocracy_api
-      .given('job 42 exists')
+    interaction
+      .given('job exists', { 'id' => 42 })
       .upon_receiving('a verification verdict request')
-      .with(
-        method: :get,
-        path: Pact.term(
-          generate: '/jobs/42/verified.txt',
-          matcher: %r{^/jobs/[1-9][0-9]*/verified\.txt$}
-        )
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/jobs/[1-9][0-9]*/verified\.txt$}, '/jobs/42/verified.txt')
       )
       .will_respond_with(
         status: 200,
         body: 'done',
         headers: { 'Content-Type' => 'text/plain' }
       )
-    assert(pact_baza.verified(42))
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert(baza.verified(42))
+    end
   end
 
   def test_unlocks_job_by_name
-    zerocracy_api
+    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    interaction
       .upon_receiving('a request for CSRF token')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(status: 200, body: csrf)
+    interaction
       .given('job exists')
       .upon_receiving('an unlock request')
-      .with(
-        method: :post,
-        path: Pact.term(generate: '/unlock/foo', matcher: %r{^/unlock/.+$}),
+      .with_request(
+        method: 'POST',
+        path: match_regex(%r{^/unlock/.+$}, '/unlock/foo'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
-          _csrf: CSRF,
-          owner: Pact.term(generate: 'the-owner', matcher: /^.+$/)
+          '_csrf' => csrf,
+          'owner' => match_regex(/^.+$/, 'the-owner')
         }
       )
       .will_respond_with(status: 302)
-    assert(pact_baza.unlock('foo', 'the-owner'))
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert(baza.unlock('foo', 'the-owner'))
+    end
   end
 
   def test_pushes_to_create_job
-    zerocracy_api
-      .given('product "foo" exists')
+    interaction
+      .given('product exists', { 'name' => 'foo' })
       .upon_receiving('a push request')
-      .with(
-        method: :put,
-        path: Pact.term(generate: '/push/foo', matcher: %r{/push/[a-z0-9]+})
+      .with_request(
+        method: 'PUT',
+        path: match_regex(%r{/push/[a-z0-9]+}, '/push/foo')
       )
       .will_respond_with(
         status: 200,
-        body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
+        body: match_regex(/^[1-9][0-9]*$/, '42')
       )
-    pact_baza.push('foo', 'hello, world!', [])
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      baza.push('foo', 'hello, world!', [])
+    end
   end
 
   def test_pops_no_jobs
-    zerocracy_api
+    interaction
       .given('queue is empty')
       .upon_receiving('a pop request with no job')
-      .with(
-        method: :get,
+      .with_request(
+        method: 'GET',
         path: '/pop',
-        query: {
-          owner: Pact.term(generate: 'me', matcher: /^.+$/)
-        }
+        query: { 'owner' => match_regex(/^.+$/, 'me') }
       )
       .will_respond_with(status: 204)
-    Tempfile.open do |zip|
-      refute(pact_baza.pop('me', zip.path))
-      refute_path_exists(zip.path)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      Tempfile.open do |zip|
+        refute(baza.pop('me', zip.path))
+        refute_path_exists(zip.path)
+      end
     end
   end
 
   def test_finishes_jobs
-    zerocracy_api
-      .given('job #42 exists')
+    interaction
+      .given('job exists', { 'id' => 42 })
       .upon_receiving('a finish request')
-      .with(
-        method: :put,
+      .with_request(
+        method: 'PUT',
         path: '/finish',
-        query: {
-          id: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
-        }
+        query: { 'id' => match_regex(/^[1-9][0-9]*$/, '42') }
       )
       .will_respond_with(status: 200)
-    Tempfile.open do |zip|
-      File.binwrite(zip.path, 'test data')
-      pact_baza.finish(42, zip.path)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      Tempfile.open do |zip|
+        File.binwrite(zip.path, 'test data')
+        baza.finish(42, zip.path)
+      end
     end
   end
 
   def test_finds_recent_job
-    zerocracy_api
-      .given('job #42 exists')
+    interaction
+      .given('job exists', { 'id' => 42 })
       .upon_receiving('a recent job check')
-      .with(
-        method: :get,
-        path: Pact.term(generate: '/recent/foo.txt', matcher: %r{/recent/[a-z0-9]+\.txt})
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{/recent/[a-z0-9]+\.txt}, '/recent/foo.txt')
       )
       .will_respond_with(
         status: 200,
-        body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/),
+        body: match_regex(/^[1-9][0-9]*$/, '42'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    assert_equal(42, pact_baza.recent('foo'))
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert_equal(42, baza.recent('foo'))
+    end
   end
 
   def test_checks_product_existence
-    zerocracy_api
-      .given('product "foo" exists')
+    interaction
+      .given('product exists', { 'name' => 'foo' })
       .upon_receiving('an exists check')
-      .with(
-        method: :get,
-        path: Pact.term(generate: '/exists/foo', matcher: %r{^/exists/[a-z0-9]+$})
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/exists/[a-z0-9]+$}, '/exists/foo')
       )
       .will_respond_with(
         status: 200,
         body: 'yes',
         headers: { 'Content-Type' => 'text/plain' }
       )
-    assert(pact_baza.name_exists?('foo'))
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert(baza.name_exists?('foo'))
+    end
   end
 
   def test_checks_job_exit_code
-    zerocracy_api
-      .given('job #42 exists')
+    interaction
+      .given('job exists', { 'id' => 42 })
       .upon_receiving('an exit code request')
-      .with(
-        method: :get,
-        path: Pact.term(generate: '/exit/42.txt', matcher: %r{^/exit/[1-9][0-9]*\.txt$})
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/exit/[1-9][0-9]*\.txt$}, '/exit/42.txt')
       )
       .will_respond_with(
         status: 200,
         body: '0',
         headers: { 'Content-Type' => 'text/plain' }
       )
-    assert_predicate(pact_baza.exit_code(42), :zero?)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert_predicate(baza.exit_code(42), :zero?)
+    end
   end
 
   def test_reads_stdout
     body = 'hello, друг!'
-    zerocracy_api
-      .given('job #42 exists')
+    interaction
+      .given('job exists', { 'id' => 42 })
       .upon_receiving('a stdout request')
-      .with(
-        method: :get,
-        path: Pact.term(generate: '/stdout/42.txt', matcher: %r{^/stdout/[1-9][0-9]*\.txt$})
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/stdout/[1-9][0-9]*\.txt$}, '/stdout/42.txt')
       )
       .will_respond_with(
         status: 200,
-        body:,
+        body: body,
         headers: { 'Content-Type' => 'text/plain' }
       )
-    assert_equal(body, pact_baza.stdout(42).force_encoding('UTF-8'))
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert_equal(body, baza.stdout(42).force_encoding('UTF-8'))
+    end
   end
 
   def test_pulls_factbase_file
     fb = Factbase.new
     fb.insert.then { |f| f.foo = 3.1416 }
     fb.export
-    zerocracy_api
-      .given('job #42 exists')
+    interaction
+      .given('job exists', { 'id' => 42 })
       .upon_receiving('a pull request')
-      .with(
-        method: :get,
-        path: Pact.term(generate: '/pull/42.fb', matcher: %r{^/pull/[1-9][0-9]*\.fb$})
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/pull/[1-9][0-9]*\.fb$}, '/pull/42.fb')
       )
       .will_respond_with(status: 200)
-    assert(pact_baza.pull(42))
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert(baza.pull(42))
+    end
   end
 
   def test_locks_product
-    zerocracy_api
+    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    interaction
       .upon_receiving('a request for CSRF token')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
-      .given('product "foo" exists')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(status: 200, body: csrf)
+    interaction
+      .given('product exists', { 'name' => 'foo' })
       .upon_receiving('a lock request')
-      .with(
-        method: :post,
-        path: Pact.term(generate: '/lock/foo', matcher: %r{^/lock/[a-z0-9]+$}),
+      .with_request(
+        method: 'POST',
+        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/foo'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
-          '_csrf' => CSRF,
-          'owner' => Pact.term(generate: 'the-owner', matcher: /^.+$/)
+          '_csrf' => csrf,
+          'owner' => match_regex(/^.+$/, 'the-owner')
         }
       )
       .will_respond_with(status: 302)
-    pact_baza.lock('foo', 'the-owner')
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      baza.lock('foo', 'the-owner')
+    end
   end
 
   def test_fails_to_lock
-    zerocracy_api
+    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    interaction
       .upon_receiving('a request for CSRF token')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
-      .given('product "foo" is locked')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(status: 200, body: csrf)
+    interaction
+      .given('product is locked', { 'name' => 'foo' })
       .upon_receiving('a lock request that fails')
-      .with(
-        method: :post,
-        path: Pact.term(generate: '/lock/foo', matcher: %r{^/lock/[a-z0-9]+$}),
+      .with_request(
+        method: 'POST',
+        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/foo'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
-          '_csrf' => CSRF,
-          'owner' => Pact.term(generate: 'the-owner', matcher: /^.+$/)
+          '_csrf' => csrf,
+          'owner' => match_regex(/^.+$/, 'the-owner')
         }
       )
       .will_respond_with(status: 409)
-    assert_raises(StandardError) { pact_baza.lock('foo', 'the-owner') }
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert_raises(StandardError) { baza.lock('foo', 'the-owner') }
+    end
   end
 
   def test_saves_durable
     body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
-    zerocracy_api
-      .given('durable #42 exists')
+    interaction
+      .given('durable exists', { 'id' => 42 })
       .upon_receiving('a durable save request')
-      .with(
-        method: :put,
-        path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$})
+      .with_request(
+        method: 'PUT',
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42')
       )
       .will_respond_with(status: 200, body: '')
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'test.txt')
-      File.binwrite(file, body)
-      pact_baza.durable_save(42, file)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'test.txt')
+        File.binwrite(file, body)
+        baza.durable_save(42, file)
+      end
     end
   end
 
   def test_loads_durable
-    zerocracy_api
-      .given('durable #42 exists')
+    interaction
+      .given('durable exists', { 'id' => 42 })
       .upon_receiving('a durable load request')
-      .with(method: :get, path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$}))
-      .will_respond_with(status: 200, body: Pact.term(generate: 'some data', matcher: /^.+$/))
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'loaded.txt')
-      pact_baza.durable_load(42, file)
-      assert_equal('some data', File.read(file))
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42')
+      )
+      .will_respond_with(status: 200, body: match_regex(/^.+$/, 'some data'))
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'loaded.txt')
+        baza.durable_load(42, file)
+        assert_equal('some data', File.read(file))
+      end
     end
   end
 
   def test_loads_durable_empty_content
-    zerocracy_api
-      .given('durable is empty')
+    interaction
+      .given('durable is empty', { 'id' => 42 })
       .upon_receiving('a durable load request for empty content')
-      .with(method: :get, path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$}))
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42')
+      )
       .will_respond_with(status: 206, body: '', headers: { 'Content-Range' => 'bytes 0-0/0' })
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'loaded.txt')
-      pact_baza.durable_load(42, file)
-      assert_equal('', File.read(file))
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'loaded.txt')
+        baza.durable_load(42, file)
+        assert_equal('', File.read(file))
+      end
     end
   end
 
   def test_locks_durable
-    zerocracy_api
+    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    interaction
       .upon_receiving('a request for CSRF token')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
-      .given('durable #42 exists')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(status: 200, body: csrf)
+    interaction
+      .given('durable exists', { 'id' => 42 })
       .upon_receiving('a durable lock request')
-      .with(
-        method: :post,
-        path: Pact.term(generate: '/durables/42/lock', matcher: %r{^/durables/[1-9][0-9]*/lock$}),
+      .with_request(
+        method: 'POST',
+        path: match_regex(%r{^/durables/[1-9][0-9]*/lock$}, '/durables/42/lock'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
-          '_csrf' => CSRF,
-          'owner' => Pact.term(generate: 'the-owner', matcher: /^.+$/)
+          '_csrf' => csrf,
+          'owner' => match_regex(/^.+$/, 'the-owner')
         }
       )
       .will_respond_with(status: 302)
-    pact_baza.durable_lock(42, 'the-owner')
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      baza.durable_lock(42, 'the-owner')
+    end
   end
 
   def test_unlocks_durable
-    zerocracy_api
+    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    interaction
       .upon_receiving('a request for CSRF token')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
-      .given('durable #42 is locked')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(status: 200, body: csrf)
+    interaction
+      .given('durable is locked', { 'id' => 42 })
       .upon_receiving('a durable unlock request')
-      .with(
-        method: :post,
-        path: Pact.term(generate: '/durables/42/unlock', matcher: %r{^/durables/[1-9][0-9]*/unlock$}),
+      .with_request(
+        method: 'POST',
+        path: match_regex(%r{^/durables/[1-9][0-9]*/unlock$}, '/durables/42/unlock'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
-          '_csrf' => CSRF,
-          'owner' => Pact.term(generate: 'the-owner', matcher: /^.+$/)
+          '_csrf' => csrf,
+          'owner' => match_regex(/^.+$/, 'the-owner')
         }
       )
       .will_respond_with(status: 302)
-    pact_baza.durable_unlock(42, 'the-owner')
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      baza.durable_unlock(42, 'the-owner')
+    end
   end
 
   def test_pays_fee
-    zerocracy_api
+    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    interaction
       .upon_receiving('a request for CSRF token')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
-      .given('user is logged in')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(status: 200, body: csrf)
+    interaction
+      .given('user is authenticated')
       .upon_receiving('a fee payment request')
-      .with(
-        method: :post,
+      .with_request(
+        method: 'POST',
         path: '/account/fee',
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
-          '_csrf' => CSRF,
-          'amount' => Pact.term(generate: '42.77', matcher: /^[0-9]+\.[0-9]+$/),
-          'job' => Pact.term(generate: '42', matcher: /^[0-9]+$/),
-          'summary' => Pact.term(generate: 'the summary', matcher: /^.+$/),
-          'tab' => Pact.term(generate: 'unknown', matcher: /^[a-z]+$/)
+          '_csrf' => csrf,
+          'amount' => match_regex(/^[0-9]+\.[0-9]+$/, '42.770000'),
+          'job' => match_regex(/^[0-9]+$/, '42'),
+          'summary' => match_regex(/^.+$/, 'the summary'),
+          'tab' => match_regex(/^[a-z]+$/, 'unknown')
         }
       )
       .will_respond_with(
         status: 302,
-        headers: {
-          'X-Zerocracy-ReceiptId' => Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
-        }
+        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '42') }
       )
-    receipt = pact_baza.fee('unknown', 42.77, 'the summary', 42)
-    assert_equal(42, receipt)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      receipt = baza.fee('unknown', 42.77, 'the summary', 42)
+      assert_equal(42, receipt)
+    end
   end
 
   def test_enters_when_cached
-    zerocracy_api
-      .given('result for the "bar" badge for job #42 and "foo" product exists as "before"')
+    interaction
+      .given('cached result exists', { 'badge' => 'bar', 'job' => 42, 'product' => 'foo', 'result' => 'before' })
       .upon_receiving('an enter request with cached result')
-      .with(
-        method: :get,
+      .with_request(
+        method: 'GET',
         path: '/result',
-        query: {
-          badge: Pact.term(generate: 'bar', matcher: /^[a-z0-9.]+$/)
-        }
+        query: { 'badge' => match_regex(/^[a-z0-9.]+$/, 'bar') }
       )
       .will_respond_with(
         status: 200,
-        body: Pact.term(generate: 'before', matcher: /^.+$/),
+        body: match_regex(/^.+$/, 'before'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    result = pact_baza.enter('foo', 'bar', 'no reason', 42) { 'after' }
-    assert_equal('before', result)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      result = baza.enter('foo', 'bar', 'no reason', 42) { 'after' }
+      assert_equal('before', result)
+    end
   end
 
   def test_enters_when_not_cached
-    zerocracy_api
-      .given('result for the "bar" badge for "foo" product not exists')
+    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    interaction
+      .given('cached result not exists', { 'badge' => 'bar', 'product' => 'foo' })
       .upon_receiving('an enter request without cached result')
-      .with(
-        method: :get,
+      .with_request(
+        method: 'GET',
         path: '/result',
-        query: {
-          badge: Pact.term(generate: 'bar', matcher: /^[a-z0-9.]+$/)
-        }
+        query: { 'badge' => match_regex(/^[a-z0-9.]+$/, 'bar') }
       )
       .will_respond_with(
         status: 204,
         body: '',
         headers: { 'Content-Type' => 'text/plain' }
       )
-    zerocracy_api
+    interaction
       .upon_receiving('a request for CSRF token')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
-      .given('job #42 exists for the "foo" product and valve "bar" not exists')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(status: 200, body: csrf)
+    interaction
+      .given('job exists without valve', { 'job' => 42, 'product' => 'foo', 'valve' => 'bar' })
       .upon_receiving('a valve creation request')
-      .with(
-        method: :post,
+      .with_request(
+        method: 'POST',
         path: '/valves',
-        query: {
-          job: Pact.term(generate: '42', matcher: /^[0-9]+$/)
-        },
+        query: { 'job' => match_regex(/^[0-9]+$/, '42') },
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
-          '_csrf' => CSRF,
-          'badge' => Pact.term(generate: 'bar', matcher: /^[a-z0-9.-]+$/),
-          'pname' => Pact.term(generate: 'foo', matcher: /^[a-z0-9]+$/),
-          'result' => Pact.term(generate: 'after', matcher: /^.+$/),
-          'why' => Pact.term(generate: 'no reason', matcher: /^.+$/)
+          '_csrf' => csrf,
+          'badge' => match_regex(/^[a-z0-9.-]+$/, 'bar'),
+          'pname' => match_regex(/^[a-z0-9]+$/, 'foo'),
+          'result' => match_regex(/^.+$/, 'after'),
+          'why' => match_regex(/^.+$/, 'no reason')
         }
       )
       .will_respond_with(status: 302)
-    result = pact_baza.enter('foo', 'bar', 'no reason', 42) { 'after' }
-    assert_equal('after', result)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      result = baza.enter('foo', 'bar', 'no reason', 42) { 'after' }
+      assert_equal('after', result)
+    end
   end
 
   def test_finds_durable
-    zerocracy_api
-      .given('durable "bar.txt" exists for the "foo" product')
+    interaction
+      .given('durable exists for product', { 'file' => 'bar.txt', 'product' => 'foo' })
       .upon_receiving('a durable find request')
-      .with(
-        method: :get,
+      .with_request(
+        method: 'GET',
         path: '/durable-find',
         query: {
-          file: Pact.term(generate: 'bar.txt', matcher: /[a-z0-9.]+/),
-          pname: Pact.term(generate: 'foo', matcher: /^[a-z0-9]+$/)
+          'file' => match_regex(/[a-z0-9.]+/, 'bar.txt'),
+          'pname' => match_regex(/^[a-z0-9]+$/, 'foo')
         }
       )
-      .will_respond_with(status: 200, body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/))
-    id = pact_baza.durable_find('foo', 'bar.txt')
-    assert_equal(42, id)
+      .will_respond_with(
+        status: 200,
+        body: match_regex(/^[1-9][0-9]*$/, '42'),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      id = baza.durable_find('foo', 'bar.txt')
+      assert_equal(42, id)
+    end
   end
 
   def test_doesnt_find_durable
-    zerocracy_api
-      .given('durable "bar.txt" does not exist for the "foo" product')
+    interaction
+      .given('durable not exists for product', { 'file' => 'bar.txt', 'product' => 'foo' })
       .upon_receiving('a durable find request that returns not found')
-      .with(
-        method: :get,
+      .with_request(
+        method: 'GET',
         path: '/durable-find',
         query: {
-          file: Pact.term(generate: 'bar.txt', matcher: /[a-z0-9.]+/),
-          pname: Pact.term(generate: 'foo', matcher: /^[a-z0-9]+$/)
+          'file' => match_regex(/[a-z0-9.]+/, 'bar.txt'),
+          'pname' => match_regex(/^[a-z0-9]+$/, 'foo')
         }
       )
       .will_respond_with(status: 404)
-    id = pact_baza.durable_find('foo', 'bar.txt')
-    assert_nil(id)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      id = baza.durable_find('foo', 'bar.txt')
+      assert_nil(id)
+    end
   end
 
   private
 
-  def pact_baza(pause: 1)
+  def baza_client(port, pause: 1)
     BazaRb.new(
-      'localhost',
-      zerocracy_api.mock_service_base_url.split(':').last.to_i,
+      '127.0.0.1',
+      port,
       '000',
       ssl: false,
-      loog: Loog::NULL,
+      loog: Loog::VERBOSE,
       compress: false,
       pause:
     )
