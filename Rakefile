@@ -38,7 +38,7 @@ task :picks do
   Dir['lib/**/*.rb'].each do |f|
     qbash(
       "bundle exec ruby #{Shellwords.escape(f)} -- --offline",
-      log: $stdout, env: { 'RACK_ENV' => 'picks' }
+      stdout: $stdout, env: { 'RACK_ENV' => 'picks' }
     )
   end
 end

@@ -86,7 +86,7 @@ class TestBazaRb < Minitest::Test
       .given('user exists')
       .upon_receiving('a whoami request')
       .with(method: :get, path: '/whoami')
-      .will_respond_with(status: 200, body: 'jeff')
+      .will_respond_with(status: 200, body: Pact.term(generate: 'jeff', matcher: /^[a-z0-9-]+$/))
     assert_equal('jeff', pact_baza.whoami)
   end
 
@@ -393,7 +393,8 @@ class TestBazaRb < Minitest::Test
   end
 
   def job_path(prefix, suffix = '')
-    Pact.term(generate: "#{prefix}/42#{suffix}", matcher: %r{^#{Regexp.escape(prefix)}/[1-9][0-9]*#{Regexp.escape(suffix)}$})
+    pattern = %r{^#{Regexp.escape(prefix)}/[1-9][0-9]*#{Regexp.escape(suffix)}$}
+    Pact.term(generate: "#{prefix}/42#{suffix}", matcher: pattern)
   end
 
   def job_query(prefix)
