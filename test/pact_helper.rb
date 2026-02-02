@@ -74,8 +74,10 @@ module Pact
           elsif body.is_a?(String)
             PactFfi.with_body(@pact_interaction, part, type, body)
           else
-            PactFfi.with_body(@pact_interaction, part, 'application/json',
-                              format_value(InteractionContents.basic(body)))
+            PactFfi.with_body(
+              @pact_interaction, part, 'application/json',
+              format_value(InteractionContents.basic(body))
+            )
           end
           self
         end
@@ -100,8 +102,10 @@ module Pact
               PactFfi.with_body(@pact_interaction, part, type, val.to_s)
             end
           else
-            PactFfi.with_body(@pact_interaction, part, 'application/json',
-                              format_value(InteractionContents.basic(body)))
+            PactFfi.with_body(
+              @pact_interaction, part, 'application/json',
+              format_value(InteractionContents.basic(body))
+            )
           end
           self
         end
