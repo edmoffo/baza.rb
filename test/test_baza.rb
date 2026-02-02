@@ -127,7 +127,7 @@ class TestBazaRb < Minitest::Test
       .with(method: :get, path: '/account/balance')
       .will_respond_with(
         status: 200,
-        body: Pact.term(generate: '42.33', matcher: %r{^[0-9]+\.[0-9]+$}),
+        body: Pact.term(generate: '42.33', matcher: /^[0-9]+\.[0-9]+$/),
         headers: { 'Content-Type' => 'text/plain' }
       )
     assert_in_delta(42.33, pact_baza.balance)
@@ -212,7 +212,7 @@ class TestBazaRb < Minitest::Test
         method: :get,
         path: '/pop',
         query: {
-          owner: Pact.term(generate: 'me', matcher: %r{^.+$})
+          owner: Pact.term(generate: 'me', matcher: /^.+$/)
         }
       )
       .will_respond_with(status: 204)
@@ -308,7 +308,7 @@ class TestBazaRb < Minitest::Test
   def test_pulls_factbase_file
     fb = Factbase.new
     fb.insert.then { |f| f.foo = 42 }
-    bin = fb.export
+    fb.export
     zerocracy_api
       .given('job #42 exists')
       .upon_receiving('a pull request')
@@ -334,7 +334,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => CSRF,
-          'owner' => Pact.term(generate: 'the-owner', matcher: %r{^.+$})
+          'owner' => Pact.term(generate: 'the-owner', matcher: /^.+$/)
         }
       )
       .will_respond_with(status: 302)
@@ -355,7 +355,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => CSRF,
-          'owner' => Pact.term(generate: 'the-owner', matcher: %r{^.+$})
+          'owner' => Pact.term(generate: 'the-owner', matcher: /^.+$/)
         }
       )
       .will_respond_with(status: 409)
@@ -384,7 +384,7 @@ class TestBazaRb < Minitest::Test
       .given('durable #42 exists')
       .upon_receiving('a durable load request')
       .with(method: :get, path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$}))
-      .will_respond_with(status: 200, body: Pact.term(generate: 'some data', matcher: %r{^.+$}))
+      .will_respond_with(status: 200, body: Pact.term(generate: 'some data', matcher: /^.+$/))
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
       pact_baza.durable_load(42, file)
@@ -419,7 +419,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => CSRF,
-          'owner' => Pact.term(generate: 'the-owner', matcher: %r{^.+$})
+          'owner' => Pact.term(generate: 'the-owner', matcher: /^.+$/)
         }
       )
       .will_respond_with(status: 302)
@@ -440,7 +440,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => CSRF,
-          'owner' => Pact.term(generate: 'the-owner', matcher: %r{^.+$})
+          'owner' => Pact.term(generate: 'the-owner', matcher: /^.+$/)
         }
       )
       .will_respond_with(status: 302)
@@ -461,10 +461,10 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => CSRF,
-          'amount' => Pact.term(generate: '42.77', matcher: %r{^[0-9]+\.[0-9]+$}),
-          'job' => Pact.term(generate: '42', matcher: %r{^[0-9]+$}),
-          'summary' => Pact.term(generate: 'the summary', matcher: %r{^.+$}),
-          'tab' => Pact.term(generate: 'unknown', matcher: %r{^[a-z]+$})
+          'amount' => Pact.term(generate: '42.77', matcher: /^[0-9]+\.[0-9]+$/),
+          'job' => Pact.term(generate: '42', matcher: /^[0-9]+$/),
+          'summary' => Pact.term(generate: 'the summary', matcher: /^.+$/),
+          'tab' => Pact.term(generate: 'unknown', matcher: /^[a-z]+$/)
         }
       )
       .will_respond_with(
@@ -529,7 +529,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => CSRF,
-          'badge' => Pact.term(generate: 'bar', matcher: /^[a-z0-9\.-]+$/),
+          'badge' => Pact.term(generate: 'bar', matcher: /^[a-z0-9.-]+$/),
           'pname' => Pact.term(generate: 'foo', matcher: /^[a-z0-9]+$/),
           'result' => Pact.term(generate: 'after', matcher: /^.+$/),
           'why' => Pact.term(generate: 'no reason', matcher: /^.+$/)
@@ -582,7 +582,7 @@ class TestBazaRb < Minitest::Test
       zerocracy_api.mock_service_base_url.split(':').last.to_i,
       '000',
       ssl: false,
-      loog: Loog::VERBOSE,
+      loog: Loog::NULL,
       compress: false,
       pause:
     )
