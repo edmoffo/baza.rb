@@ -59,7 +59,7 @@ class TestBazaRb < Minitest::Test
       .with(method: :get, path: '/csrf')
       .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
-      .given('user exists')
+      .given('user is logged in')
       .upon_receiving('a transfer payment request')
       .with(
         method: :post,
@@ -77,7 +77,7 @@ class TestBazaRb < Minitest::Test
       .with(method: :get, path: '/csrf')
       .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
-      .given('user exists')
+      .given('user is logged in')
       .upon_receiving('a transfer payment request with job')
       .with(
         method: :post,
@@ -91,7 +91,7 @@ class TestBazaRb < Minitest::Test
 
   def test_reads_whoami
     zerocracy_api
-      .given('user exists')
+      .given('user is logged in')
       .upon_receiving('a whoami request')
       .with(method: :get, path: '/whoami')
       .will_respond_with(status: 200, body: Pact.term(generate: 'jeff', matcher: /^[a-z0-9-]+$/))
@@ -100,7 +100,7 @@ class TestBazaRb < Minitest::Test
 
   def test_reads_balance
     zerocracy_api
-      .given('user exists')
+      .given('user is logged in')
       .upon_receiving('a balance request')
       .with(method: :get, path: '/account/balance')
       .will_respond_with(status: 200, body: '42.33')
@@ -109,6 +109,7 @@ class TestBazaRb < Minitest::Test
 
   def test_checks_whether_job_is_finished
     zerocracy_api
+      .given('user is logged in')
       .given('job exists')
       .upon_receiving('a finished check request')
       .with(method: :get, path: job_path('/finished'))
@@ -335,7 +336,7 @@ class TestBazaRb < Minitest::Test
       .with(method: :get, path: '/csrf')
       .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
-      .given('user exists')
+      .given('user is logged in')
       .upon_receiving('a fee payment request')
       .with(
         method: :post,

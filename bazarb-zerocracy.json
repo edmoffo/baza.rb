@@ -7,7 +7,130 @@
   },
   "interactions": [
     {
-      "description": "a request for CSRF token for durable lock",
+      "description": "a pop request with no job",
+      "providerState": "queue is empty",
+      "request": {
+        "method": "get",
+        "path": "/pop",
+        "query": "owner=me"
+      },
+      "response": {
+        "status": 204,
+        "headers": {
+        }
+      }
+    },
+    {
+      "description": "a durable find request that returns not found",
+      "providerState": "durable does not exist",
+      "request": {
+        "method": "get",
+        "path": "/durable-find",
+        "query": "file=test.txt&pname=test-job"
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+        }
+      }
+    },
+    {
+      "description": "a whoami request that eventually succeeds",
+      "providerState": "server is busy",
+      "request": {
+        "method": "get",
+        "path": "/whoami"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "testuser"
+      }
+    },
+    {
+      "description": "an exit code request",
+      "providerState": "job exists",
+      "request": {
+        "method": "get",
+        "path": "/exit/42.txt",
+        "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "^\\/exit\\/[1-9][0-9]*\\.txt$"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "0"
+      }
+    },
+    {
+      "description": "a verification verdict request",
+      "providerState": "job exists",
+      "request": {
+        "method": "get",
+        "path": "/jobs/42/verified.txt",
+        "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "^\\/jobs\\/[1-9][0-9]*\\/verified\\.txt$"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "done"
+      }
+    },
+    {
+      "description": "a durable load request for empty content",
+      "providerState": "durable is empty",
+      "request": {
+        "method": "get",
+        "path": "/durables/42",
+        "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "^\\/durables\\/[1-9][0-9]*$"
+          }
+        }
+      },
+      "response": {
+        "status": 206,
+        "headers": {
+          "Content-Range": "bytes 0-0/0"
+        },
+        "body": ""
+      }
+    },
+    {
+      "description": "a push request",
+      "providerState": "product exists",
+      "request": {
+        "method": "put",
+        "path": "/push/simple"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "42",
+        "matchingRules": {
+          "$.body": {
+            "match": "regex",
+            "regex": "^[1-9][0-9]*$"
+          }
+        }
+      }
+    },
+    {
+      "description": "a request for CSRF token for fee",
       "request": {
         "method": "get",
         "path": "/csrf"
@@ -26,18 +149,80 @@
       }
     },
     {
-      "description": "a durable lock request",
-      "providerState": "durable exists",
+      "description": "a fee payment request",
+      "providerState": "user is logged in",
       "request": {
         "method": "post",
-        "path": "/durables/42/lock",
+        "path": "/account/fee",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded"
+        }
+      },
+      "response": {
+        "status": 302,
+        "headers": {
+          "X-Zerocracy-ReceiptId": "42"
+        },
+        "matchingRules": {
+          "$.headers.X-Zerocracy-ReceiptId": {
+            "match": "regex",
+            "regex": "^[1-9][0-9]*$"
+          }
+        }
+      }
+    },
+    {
+      "description": "a finished check request",
+      "providerState": "job exists",
+      "request": {
+        "method": "get",
+        "path": "/finished/42",
+        "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "^\\/finished\\/[1-9][0-9]*$"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "yes"
+      }
+    },
+    {
+      "description": "a request for CSRF token for durable unlock",
+      "request": {
+        "method": "get",
+        "path": "/csrf"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "csrf-token-example",
+        "matchingRules": {
+          "$.body": {
+            "match": "regex",
+            "regex": "^.+$"
+          }
+        }
+      }
+    },
+    {
+      "description": "a durable unlock request",
+      "providerState": "durable is locked",
+      "request": {
+        "method": "post",
+        "path": "/durables/42/unlock",
         "headers": {
           "Content-Type": "application/x-www-form-urlencoded"
         },
         "matchingRules": {
           "$.path": {
             "match": "regex",
-            "regex": "^\\/durables\\/[1-9][0-9]*\\/lock$"
+            "regex": "^\\/durables\\/[1-9][0-9]*\\/unlock$"
           }
         }
       },
@@ -68,7 +253,7 @@
     },
     {
       "description": "a transfer payment request",
-      "providerState": "user exists",
+      "providerState": "user is logged in",
       "request": {
         "method": "post",
         "path": "/account/transfer",
@@ -90,16 +275,15 @@
       }
     },
     {
-      "description": "a finish request",
-      "providerState": "job exists",
+      "description": "a durable save request",
+      "providerState": "durable exists",
       "request": {
         "method": "put",
-        "path": "/finish",
-        "query": "id=42",
+        "path": "/durables/42",
         "matchingRules": {
-          "$.query": {
+          "$.path": {
             "match": "regex",
-            "regex": "^id=[1-9][0-9]*$"
+            "regex": "^\\/durables\\/[1-9][0-9]*$"
           }
         }
       },
@@ -130,7 +314,7 @@
     },
     {
       "description": "a transfer payment request with job",
-      "providerState": "user exists",
+      "providerState": "user is logged in",
       "request": {
         "method": "post",
         "path": "/account/transfer",
@@ -152,7 +336,36 @@
       }
     },
     {
-      "description": "a request for CSRF token for failed lock",
+      "description": "an enter request with cached result",
+      "providerState": "result is cached",
+      "request": {
+        "method": "get",
+        "path": "/result",
+        "query": "badge=test-badge"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "cached result"
+      }
+    },
+    {
+      "description": "an enter request without cached result",
+      "providerState": "result is not cached",
+      "request": {
+        "method": "get",
+        "path": "/result",
+        "query": "badge=test-badge"
+      },
+      "response": {
+        "status": 204,
+        "headers": {
+        }
+      }
+    },
+    {
+      "description": "a request for CSRF token for valve",
       "request": {
         "method": "get",
         "path": "/csrf"
@@ -171,31 +384,32 @@
       }
     },
     {
-      "description": "a lock request that fails",
-      "providerState": "product is locked",
+      "description": "a valve creation request",
+      "providerState": "result is not cached",
       "request": {
         "method": "post",
-        "path": "/lock/name",
+        "path": "/valves",
+        "query": "job=123",
         "headers": {
           "Content-Type": "application/x-www-form-urlencoded"
         }
       },
       "response": {
-        "status": 409,
+        "status": 302,
         "headers": {
         }
       }
     },
     {
-      "description": "an exit code request",
+      "description": "a stdout request",
       "providerState": "job exists",
       "request": {
         "method": "get",
-        "path": "/exit/42.txt",
+        "path": "/stdout/42.txt",
         "matchingRules": {
           "$.path": {
             "match": "regex",
-            "regex": "^\\/exit\\/[1-9][0-9]*\\.txt$"
+            "regex": "^\\/stdout\\/[1-9][0-9]*\\.txt$"
           }
         }
       },
@@ -203,95 +417,7 @@
         "status": 200,
         "headers": {
         },
-        "body": "0"
-      }
-    },
-    {
-      "description": "a whoami request",
-      "providerState": "user exists",
-      "request": {
-        "method": "get",
-        "path": "/whoami"
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "jeff",
-        "matchingRules": {
-          "$.body": {
-            "match": "regex",
-            "regex": "^[a-z0-9-]+$"
-          }
-        }
-      }
-    },
-    {
-      "description": "a verification verdict request",
-      "providerState": "job exists",
-      "request": {
-        "method": "get",
-        "path": "/jobs/42/verified.txt",
-        "matchingRules": {
-          "$.path": {
-            "match": "regex",
-            "regex": "^\\/jobs\\/[1-9][0-9]*\\/verified\\.txt$"
-          }
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "done"
-      }
-    },
-    {
-      "description": "a balance request",
-      "providerState": "user exists",
-      "request": {
-        "method": "get",
-        "path": "/account/balance"
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "42.33"
-      }
-    },
-    {
-      "description": "a durable find request that returns not found",
-      "providerState": "durable does not exist",
-      "request": {
-        "method": "get",
-        "path": "/durable-find",
-        "query": "file=test.txt&pname=test-job"
-      },
-      "response": {
-        "status": 404,
-        "headers": {
-        }
-      }
-    },
-    {
-      "description": "a finished check request",
-      "providerState": "job exists",
-      "request": {
-        "method": "get",
-        "path": "/finished/42",
-        "matchingRules": {
-          "$.path": {
-            "match": "regex",
-            "regex": "^\\/finished\\/[1-9][0-9]*$"
-          }
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "yes"
+        "body": "hello!"
       }
     },
     {
@@ -346,11 +472,46 @@
       }
     },
     {
-      "description": "a recent job check",
-      "providerState": "job exists",
+      "description": "a balance request",
+      "providerState": "user is logged in",
       "request": {
         "method": "get",
-        "path": "/recent/simple.txt"
+        "path": "/account/balance"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "42.33"
+      }
+    },
+    {
+      "description": "a durable load request",
+      "providerState": "durable exists",
+      "request": {
+        "method": "get",
+        "path": "/durables/42",
+        "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "^\\/durables\\/[1-9][0-9]*$"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "loaded content"
+      }
+    },
+    {
+      "description": "a durable find request",
+      "providerState": "durable exists",
+      "request": {
+        "method": "get",
+        "path": "/durable-find",
+        "query": "file=test.txt&pname=test-job"
       },
       "response": {
         "status": 200,
@@ -380,12 +541,11 @@
       }
     },
     {
-      "description": "a durable find request",
-      "providerState": "durable exists",
+      "description": "a recent job check",
+      "providerState": "job exists",
       "request": {
         "method": "get",
-        "path": "/durable-find",
-        "query": "file=test.txt&pname=test-job"
+        "path": "/recent/simple.txt"
       },
       "response": {
         "status": 200,
@@ -401,41 +561,7 @@
       }
     },
     {
-      "description": "a pull request",
-      "providerState": "job exists",
-      "request": {
-        "method": "get",
-        "path": "/pull/42.fb",
-        "matchingRules": {
-          "$.path": {
-            "match": "regex",
-            "regex": "^\\/pull\\/[1-9][0-9]*\\.fb$"
-          }
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "hello, world!"
-      }
-    },
-    {
-      "description": "a pop request with no job",
-      "providerState": "queue is empty",
-      "request": {
-        "method": "get",
-        "path": "/pop",
-        "query": "owner=me"
-      },
-      "response": {
-        "status": 204,
-        "headers": {
-        }
-      }
-    },
-    {
-      "description": "a request for CSRF token for fee",
+      "description": "a request for CSRF token for durable lock",
       "request": {
         "method": "get",
         "path": "/csrf"
@@ -454,25 +580,59 @@
       }
     },
     {
-      "description": "a fee payment request",
-      "providerState": "user exists",
+      "description": "a durable lock request",
+      "providerState": "durable exists",
       "request": {
         "method": "post",
-        "path": "/account/fee",
+        "path": "/durables/42/lock",
         "headers": {
           "Content-Type": "application/x-www-form-urlencoded"
+        },
+        "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "^\\/durables\\/[1-9][0-9]*\\/lock$"
+          }
         }
       },
       "response": {
         "status": 302,
         "headers": {
-          "X-Zerocracy-ReceiptId": "42"
+        }
+      }
+    },
+    {
+      "description": "a request for CSRF token for failed lock",
+      "request": {
+        "method": "get",
+        "path": "/csrf"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
         },
+        "body": "csrf-token-example",
         "matchingRules": {
-          "$.headers.X-Zerocracy-ReceiptId": {
+          "$.body": {
             "match": "regex",
-            "regex": "^[1-9][0-9]*$"
+            "regex": "^.+$"
           }
+        }
+      }
+    },
+    {
+      "description": "a lock request that fails",
+      "providerState": "product is locked",
+      "request": {
+        "method": "post",
+        "path": "/lock/name",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded"
+        }
+      },
+      "response": {
+        "status": 409,
+        "headers": {
         }
       }
     },
@@ -512,8 +672,28 @@
       }
     },
     {
-      "description": "a whoami request that eventually succeeds",
-      "providerState": "server is busy",
+      "description": "a pull request",
+      "providerState": "job exists",
+      "request": {
+        "method": "get",
+        "path": "/pull/42.fb",
+        "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "^\\/pull\\/[1-9][0-9]*\\.fb$"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "hello, world!"
+      }
+    },
+    {
+      "description": "a whoami request",
+      "providerState": "user is logged in",
       "request": {
         "method": "get",
         "path": "/whoami"
@@ -522,171 +702,26 @@
         "status": 200,
         "headers": {
         },
-        "body": "testuser"
-      }
-    },
-    {
-      "description": "an enter request without cached result",
-      "providerState": "result is not cached",
-      "request": {
-        "method": "get",
-        "path": "/result",
-        "query": "badge=test-badge"
-      },
-      "response": {
-        "status": 204,
-        "headers": {
-        }
-      }
-    },
-    {
-      "description": "a request for CSRF token for valve",
-      "request": {
-        "method": "get",
-        "path": "/csrf"
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "csrf-token-example",
+        "body": "jeff",
         "matchingRules": {
           "$.body": {
             "match": "regex",
-            "regex": "^.+$"
+            "regex": "^[a-z0-9-]+$"
           }
         }
       }
     },
     {
-      "description": "a valve creation request",
-      "providerState": "result is not cached",
-      "request": {
-        "method": "post",
-        "path": "/valves",
-        "query": "job=123",
-        "headers": {
-          "Content-Type": "application/x-www-form-urlencoded"
-        }
-      },
-      "response": {
-        "status": 302,
-        "headers": {
-        }
-      }
-    },
-    {
-      "description": "a push request",
-      "providerState": "product exists",
-      "request": {
-        "method": "put",
-        "path": "/push/simple"
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "42",
-        "matchingRules": {
-          "$.body": {
-            "match": "regex",
-            "regex": "^[1-9][0-9]*$"
-          }
-        }
-      }
-    },
-    {
-      "description": "a request for CSRF token for durable unlock",
-      "request": {
-        "method": "get",
-        "path": "/csrf"
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "csrf-token-example",
-        "matchingRules": {
-          "$.body": {
-            "match": "regex",
-            "regex": "^.+$"
-          }
-        }
-      }
-    },
-    {
-      "description": "a durable unlock request",
-      "providerState": "durable is locked",
-      "request": {
-        "method": "post",
-        "path": "/durables/42/unlock",
-        "headers": {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        "matchingRules": {
-          "$.path": {
-            "match": "regex",
-            "regex": "^\\/durables\\/[1-9][0-9]*\\/unlock$"
-          }
-        }
-      },
-      "response": {
-        "status": 302,
-        "headers": {
-        }
-      }
-    },
-    {
-      "description": "a stdout request",
+      "description": "a finish request",
       "providerState": "job exists",
       "request": {
-        "method": "get",
-        "path": "/stdout/42.txt",
-        "matchingRules": {
-          "$.path": {
-            "match": "regex",
-            "regex": "^\\/stdout\\/[1-9][0-9]*\\.txt$"
-          }
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "hello!"
-      }
-    },
-    {
-      "description": "a durable load request for empty content",
-      "providerState": "durable is empty",
-      "request": {
-        "method": "get",
-        "path": "/durables/42",
-        "matchingRules": {
-          "$.path": {
-            "match": "regex",
-            "regex": "^\\/durables\\/[1-9][0-9]*$"
-          }
-        }
-      },
-      "response": {
-        "status": 206,
-        "headers": {
-          "Content-Range": "bytes 0-0/0"
-        },
-        "body": ""
-      }
-    },
-    {
-      "description": "a durable save request",
-      "providerState": "durable exists",
-      "request": {
         "method": "put",
-        "path": "/durables/42",
+        "path": "/finish",
+        "query": "id=42",
         "matchingRules": {
-          "$.path": {
+          "$.query": {
             "match": "regex",
-            "regex": "^\\/durables\\/[1-9][0-9]*$"
+            "regex": "^id=[1-9][0-9]*$"
           }
         }
       },
@@ -694,41 +729,6 @@
         "status": 200,
         "headers": {
         }
-      }
-    },
-    {
-      "description": "an enter request with cached result",
-      "providerState": "result is cached",
-      "request": {
-        "method": "get",
-        "path": "/result",
-        "query": "badge=test-badge"
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "cached result"
-      }
-    },
-    {
-      "description": "a durable load request",
-      "providerState": "durable exists",
-      "request": {
-        "method": "get",
-        "path": "/durables/42",
-        "matchingRules": {
-          "$.path": {
-            "match": "regex",
-            "regex": "^\\/durables\\/[1-9][0-9]*$"
-          }
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "loaded content"
       }
     }
   ],
