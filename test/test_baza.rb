@@ -33,6 +33,12 @@ class TestBazaRb < Minitest::Test
   Minitest.after_run do
     WebMock.allow_net_connect!
     HOOKS.after_suite
+    pact = File.join(__dir__, '..', 'bazarb-zerocracy.json')
+    if File.exist?(pact)
+      json = JSON.parse(File.read(pact))
+      json['metadata']['client'] = { 'name' => 'BazaRb', 'version' => BazaRb::VERSION }
+      File.write(pact, JSON.pretty_generate(json))
+    end
   end
 
   def setup

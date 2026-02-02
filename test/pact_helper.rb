@@ -6,6 +6,7 @@
 require 'pact/consumer'
 require 'pact/consumer/configuration'
 require 'webmock'
+require_relative '../lib/baza-rb'
 
 WebMock.allow_net_connect!
 ENV['PACT_DO_NOT_TRACK'] = 'true'
