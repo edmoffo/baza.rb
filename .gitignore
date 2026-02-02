@@ -5,6 +5,7 @@
 *.gem
 coverage/
 doc/
+log/
 node_modules/
 rdoc/
 vendor/

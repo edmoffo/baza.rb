@@ -30,4 +30,5 @@ Minitest::Reporters.use! [Minitest::Reporters::SpecReporter.new]
 Minitest.load :minitest_reporter
 
 require 'webmock/minitest'
+require 'tempfile'
 require 'minitest/autorun'

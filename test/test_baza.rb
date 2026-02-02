@@ -3,20 +3,12 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2026 Zerocracy
 # SPDX-License-Identifier: MIT
 
-require 'factbase'
 require 'loog'
-require 'net/http'
-require 'qbash'
-require 'online'
-require 'random-port'
 require 'securerandom'
-require 'shellwords'
-require 'socket'
-require 'stringio'
-require 'uri'
-require 'wait_for'
-require 'webrick'
+require 'pact/consumer'
+require 'pact/consumer/spec_hooks'
 require_relative 'test__helper'
+require_relative 'pact_helper'
 require_relative '../lib/baza-rb'
 
 # Test.
@@ -24,807 +16,370 @@ require_relative '../lib/baza-rb'
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class TestBazaRb < Minitest::Test
+  include Pact::Consumer::ConsumerContractBuilders
+
+  HOOKS = Pact::Consumer::SpecHooks.new
+
+  def self.run_one_method(klass, method, reporter)
+    HOOKS.before_all if @pact_started.nil?
+    @pact_started = true
+    super
+  end
+
+  Minitest.after_run do
+    HOOKS.after_suite
+  end
+
+  def setup
+    HOOKS.before_each(name)
+  end
+
+  def teardown
+    HOOKS.after_each(name)
+  end
+
   def test_version_is_set
     assert(BazaRb::VERSION)
   end
 
   def test_transfer_payment
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
-    stub_request(:post, 'https://example.org/account/transfer').to_return(
-      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '42' }
-    )
-    id = fake_baza.transfer('jeff', 42.50, 'for fun')
+    zerocracy_api
+      .given('user exists')
+      .upon_receiving('a request for CSRF token')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: 'token')
+    zerocracy_api
+      .given('user exists')
+      .upon_receiving('a transfer payment request')
+      .with(method: :post, path: '/account/transfer')
+      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => '42' })
+    id = pact_baza.transfer('jeff', 42.50, 'for fun')
     assert_equal(42, id)
   end
 
   def test_transfer_payment_with_job
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
-    stub_request(:post, 'https://example.org/account/transfer').to_return(
-      status: 302, headers: { 'X-Zerocracy-ReceiptId' => '42' }
-    )
-    id = fake_baza.transfer('jeff', 42.50, 'for fun', job: 555)
+    zerocracy_api
+      .given('user exists')
+      .upon_receiving('a request for CSRF token for job transfer')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: 'token')
+    zerocracy_api
+      .given('user exists')
+      .upon_receiving('a transfer payment request with job')
+      .with(method: :post, path: '/account/transfer')
+      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => '42' })
+    id = pact_baza.transfer('jeff', 42.50, 'for fun', job: 555)
     assert_equal(42, id)
   end
 
   def test_reads_whoami
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/whoami').to_return(status: 200, body: 'jeff')
-    assert_equal('jeff', fake_baza.whoami)
+    zerocracy_api
+      .given('user exists')
+      .upon_receiving('a whoami request')
+      .with(method: :get, path: '/whoami')
+      .will_respond_with(status: 200, body: 'jeff')
+    assert_equal('jeff', pact_baza.whoami)
   end
 
   def test_reads_balance
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/account/balance').to_return(status: 200, body: '42.33')
-    assert_in_delta(42.33, fake_baza.balance)
+    zerocracy_api
+      .given('user exists')
+      .upon_receiving('a balance request')
+      .with(method: :get, path: '/account/balance')
+      .will_respond_with(status: 200, body: '42.33')
+    assert_in_delta(42.33, pact_baza.balance)
   end
 
   def test_checks_whether_job_is_finished
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/finished/42').to_return(status: 200, body: 'yes')
-    assert(fake_baza.finished?(42))
+    zerocracy_api
+      .given('job exists')
+      .upon_receiving('a finished check request')
+      .with(method: :get, path: '/finished/42')
+      .will_respond_with(status: 200, body: 'yes')
+    assert(pact_baza.finished?(42))
   end
 
   def test_reads_verification_verdict
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/jobs/42/verified.txt').to_return(status: 200, body: 'done')
-    assert(fake_baza.verified(42))
+    zerocracy_api
+      .given('job exists')
+      .upon_receiving('a verification verdict request')
+      .with(method: :get, path: '/jobs/42/verified.txt')
+      .will_respond_with(status: 200, body: 'done')
+    assert(pact_baza.verified(42))
   end
 
   def test_unlocks_job_by_name
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
-    stub_request(:post, %r{https://example.org/unlock/foo}).to_return(status: 302)
-    assert(fake_baza.unlock('foo', 'x'))
-  end
-
-  def test_durable_place
-    WebMock.disable_net_connect!
-    [fake_baza(compress: true), fake_baza(compress: false)].each do |baza|
-      stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
-      stub_request(:post, 'https://example.org/durable-place').to_return(
-        status: 302, headers: { 'X-Zerocracy-DurableId' => '42' }
-      )
-      stub_request(:post, %r{https://example\.org/durables/42/lock})
-        .to_return(status: 302)
-      stub_request(:post, %r{https://example\.org/durables/42/unlock})
-        .to_return(status: 302)
-      stub_request(:put, 'https://example.org/durables/42')
-        .with(headers: { 'X-Zerocracy-Chunk' => '0' })
-        .to_return(status: 200)
-      stub_request(:put, 'https://example.org/durables/42')
-        .with(headers: { 'X-Zerocracy-Chunk' => '1' })
-        .to_return(status: 200)
-      stub_request(:put, 'https://example.org/durables/42')
-        .with(headers: { 'X-Zerocracy-Chunk' => '2' })
-        .to_return(status: 200)
-      Dir.mktmpdir do |dir|
-        file = File.join(dir, 'test.bin')
-        File.binwrite(file, 'hello, world!')
-        assert_equal(42, baza.durable_place('simple', file))
-      end
-    end
+    zerocracy_api
+      .given('job exists')
+      .upon_receiving('a request for CSRF token for unlock')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: 'token')
+    zerocracy_api
+      .given('job exists')
+      .upon_receiving('an unlock request')
+      .with(method: :post, path: '/unlock/foo')
+      .will_respond_with(status: 302)
+    assert(pact_baza.unlock('foo', 'x'))
   end
 
   def test_simple_push
-    WebMock.disable_net_connect!
-    stub_request(:put, 'https://example.org/push/simple').to_return(
-      status: 200, body: '42'
-    )
-    fake_baza.push('simple', 'hello, world!', [])
+    zerocracy_api
+      .given('product exists')
+      .upon_receiving('a push request')
+      .with(method: :put, path: '/push/simple')
+      .will_respond_with(status: 200, body: '42')
+    pact_baza.push('simple', 'hello, world!', [])
   end
 
   def test_simple_pop_with_no_job_found
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/pop?owner=me').to_return(status: 204)
+    zerocracy_api
+      .given('queue is empty')
+      .upon_receiving('a pop request with no job')
+      .with(method: :get, path: '/pop', query: 'owner=me')
+      .will_respond_with(status: 204)
     Tempfile.open do |zip|
-      refute(fake_baza.pop('me', zip.path))
+      refute(pact_baza.pop('me', zip.path))
       refute_path_exists(zip.path)
     end
   end
 
-  def test_simple_pop_with_ranges
-    WebMock.disable_net_connect!
-    owner = 'owner888'
-    job = 4242
-    stub_request(:get, 'https://example.org/pop')
-      .with(query: { owner: })
-      .to_return(
-        status: 302,
-        headers: { 'X-Zerocracy-JobId' => job },
-        body: ''
-      )
-    stub_request(:get, 'https://example.org/pop')
-      .with(query: { job: })
-      .to_return(
-        status: 206,
-        headers: { 'Content-Range' => 'bytes 0-0/*', 'Content-Length' => 0 },
-        body: ''
-      )
-    bin = nil
-    Tempfile.open do |zip|
-      File.binwrite(zip.path, 'the archive to return (not a real ZIP for now)')
-      bin = File.binread(zip.path)
-      stub_request(:get, 'https://example.org/pop')
-        .with(query: { job:, owner: })
-        .with(headers: { 'Range' => 'bytes=0-' })
-        .to_return(
-          status: 206,
-          headers: {
-            'Content-Range' => "bytes 0-7/#{bin.size}",
-            'Content-Length' => 8
-          },
-          body: bin[0..7]
-        )
-      stub_request(:get, 'https://example.org/pop')
-        .with(query: { job:, owner: })
-        .with(headers: { 'Range' => 'bytes=8-' })
-        .to_return(
-          status: 206,
-          headers: {
-            'Content-Range' => "bytes 8-#{bin.size - 1}/#{bin.size}",
-            'Content-Length' => bin.size - 8
-          },
-          body: bin[8..]
-        )
-    end
-    Tempfile.open do |zip|
-      assert(fake_baza.pop(owner, zip.path))
-      assert_path_exists(zip.path)
-      assert_equal(bin, File.binread(zip.path))
-    end
-  end
-
   def test_simple_finish
-    WebMock.disable_net_connect!
-    stub_request(:put, 'https://example.org/finish?id=42').to_return(status: 200)
+    zerocracy_api
+      .given('job exists')
+      .upon_receiving('a finish request')
+      .with(method: :put, path: '/finish', query: 'id=42')
+      .will_respond_with(status: 200)
     Tempfile.open do |zip|
-      fake_baza.finish(42, zip.path)
+      File.binwrite(zip.path, 'test data')
+      pact_baza.finish(42, zip.path)
     end
   end
 
   def test_simple_recent_check
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/recent/simple.txt')
-      .with(body: '', headers: { 'User-Agent' => /^baza.rb .*$/ })
-      .to_return(status: 200, body: '42')
-    assert_equal(
-      42,
-      fake_baza.recent('simple')
-    )
+    zerocracy_api
+      .given('job exists')
+      .upon_receiving('a recent job check')
+      .with(method: :get, path: '/recent/simple.txt')
+      .will_respond_with(status: 200, body: '42')
+    assert_equal(42, pact_baza.recent('simple'))
   end
 
   def test_simple_exists_check
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/exists/simple').to_return(
-      status: 200, body: 'yes'
-    )
-    assert(
-      fake_baza.name_exists?('simple')
-    )
+    zerocracy_api
+      .given('product exists')
+      .upon_receiving('an exists check')
+      .with(method: :get, path: '/exists/simple')
+      .will_respond_with(status: 200, body: 'yes')
+    assert(pact_baza.name_exists?('simple'))
   end
 
   def test_exit_code_check
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/exit/42.txt').to_return(
-      status: 200, body: '0'
-    )
-    assert_predicate(
-      fake_baza.exit_code(42), :zero?
-    )
+    zerocracy_api
+      .given('job exists')
+      .upon_receiving('an exit code request')
+      .with(method: :get, path: '/exit/42.txt')
+      .will_respond_with(status: 200, body: '0')
+    assert_predicate(pact_baza.exit_code(42), :zero?)
   end
 
   def test_stdout_read
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/stdout/42.txt').to_return(
-      status: 200, body: 'hello!'
-    )
-    refute_empty(
-      fake_baza.stdout(42)
-    )
+    zerocracy_api
+      .given('job exists')
+      .upon_receiving('a stdout request')
+      .with(method: :get, path: '/stdout/42.txt')
+      .will_respond_with(status: 200, body: 'hello!')
+    refute_empty(pact_baza.stdout(42))
   end
 
   def test_simple_pull
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/pull/333.fb').to_return(
-      status: 200, body: 'hello, world!', headers: {}
-    )
-    assert(
-      fake_baza.pull(333).start_with?('hello')
-    )
+    zerocracy_api
+      .given('job exists')
+      .upon_receiving('a pull request')
+      .with(method: :get, path: '/pull/333.fb')
+      .will_respond_with(status: 200, body: 'hello, world!')
+    assert(pact_baza.pull(333).start_with?('hello'))
   end
 
   def test_simple_lock_success
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
-    stub_request(:post, %r{https://example.org/lock/name}).to_return(status: 302)
-    fake_baza.lock('name', 'owner')
+    zerocracy_api
+      .given('product exists')
+      .upon_receiving('a request for CSRF token for lock')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: 'token')
+    zerocracy_api
+      .given('product exists')
+      .upon_receiving('a lock request')
+      .with(method: :post, path: '/lock/name')
+      .will_respond_with(status: 302)
+    pact_baza.lock('name', 'owner')
   end
 
   def test_simple_lock_failure
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
-    stub_request(:post, %r{https://example.org/lock/name}).to_return(status: 409)
-    assert_raises(StandardError) do
-      fake_baza.lock('name', 'owner')
-    end
-  end
-
-  def test_real_http
-    WebMock.enable_net_connect!
-    req =
-      with_http_server(200, 'yes') do |baza|
-        baza.name_exists?('simple')
-      end
-    assert_equal("baza.rb #{BazaRb::VERSION}", req['user-agent'])
-  end
-
-  def test_push_with_meta
-    WebMock.enable_net_connect!
-    req =
-      with_http_server(200, 'yes') do |baza|
-        baza.push('simple', 'hello, world!', ['boom!', 'хей!'])
-      end
-    assert_equal('Ym9vbSE= 0YXQtdC5IQ==', req['x-zerocracy-meta'])
-  end
-
-  def test_push_with_big_meta
-    WebMock.enable_net_connect!
-    req =
-      with_http_server(200, 'yes') do |baza|
-        baza.push(
-          'simple',
-          'hello, world!',
-          [
-            'pages_url:https://zerocracy.github.io/zerocracy.html',
-            'others:https://zerocracy.github.io/zerocracy.html',
-            'duration:59595'
-          ]
-        )
-      end
-    assert(req['x-zerocracy-meta'])
-  end
-
-  def test_push_compressed_content
-    WebMock.enable_net_connect!
-    fb = Factbase.new
-    fb.insert.foo = 'test-' * 10_000
-    req =
-      with_http_server(200, 'yes') do |baza|
-        baza.push('simple', fb.export, %w[meta1 meta2 meta3])
-      end
-    assert_equal('application/zip', req.content_type)
-    assert_equal('gzip', req['content-encoding'])
-    body = Zlib::GzipReader.zcat(StringIO.new(req.body))
-    assert_equal(fb.export, body)
-  end
-
-  def test_push_compression_disabled
-    WebMock.enable_net_connect!
-    fb = Factbase.new
-    fb.insert.foo = 'test-' * 10_000
-    req =
-      with_http_server(200, 'yes', compress: false) do |baza|
-        baza.push('simple', fb.export, %w[meta1 meta2 meta3])
-      end
-    assert_equal('application/octet-stream', req.content_type)
-    assert_equal(fb.export, req.body)
-  end
-
-  def test_with_very_short_timeout
-    WebMock.enable_net_connect!
-    host = '127.0.0.1'
-    RandomPort::Pool::SINGLETON.acquire do |port|
-      server = TCPServer.new(host, port)
-      t =
-        Thread.new do
-          socket = server.accept
-          req = WEBrick::HTTPRequest.new(WEBrick::Config::HTTP)
-          req.parse(socket)
-          req.body
-          sleep 0.1
-          socket.puts "HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nabc"
-          socket.close
-        end
-      assert_includes(
-        assert_raises(StandardError) do
-          BazaRb.new(host, port, '0000', ssl: false, timeout: 0.01).push('x', 'y', [])
-        end.message, 'timed out in'
-      )
-      t.terminate
-      assert(t.join(1))
-    end
+    zerocracy_api
+      .given('product is locked')
+      .upon_receiving('a request for CSRF token for failed lock')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: 'token')
+    zerocracy_api
+      .given('product is locked')
+      .upon_receiving('a lock request that fails')
+      .with(method: :post, path: '/lock/name')
+      .will_respond_with(status: 409)
+    assert_raises(StandardError) { pact_baza.lock('name', 'owner') }
   end
 
   def test_durable_save
-    WebMock.disable_net_connect!
+    zerocracy_api
+      .given('durable exists')
+      .upon_receiving('a durable save request')
+      .with(method: :put, path: '/durables/42')
+      .will_respond_with(status: 200)
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'test.txt')
       File.write(file, "\x00\x00 hi, dude! \x00\xFF\xFE\x12")
-      stub_request(:put, 'https://example.org:443/durables/42')
-        .with(headers: { 'X-Zerocracy-Token' => '000' })
-        .to_return(status: 200)
-      fake_baza.durable_save(42, file)
+      pact_baza.durable_save(42, file)
     end
   end
 
   def test_durable_load
-    WebMock.disable_net_connect!
+    zerocracy_api
+      .given('durable exists')
+      .upon_receiving('a durable load request')
+      .with(method: :get, path: '/durables/42')
+      .will_respond_with(status: 200, body: 'loaded content')
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
-      data = "\x00\xE0 привет \x00\x00\xFF\xFE\x12"
-      stub_request(:get, 'https://example.org:443/durables/42')
-        .with(headers: { 'X-Zerocracy-Token' => '000' })
-        .to_return(status: 200, body: data, headers: {})
-      fake_baza.durable_load(42, file)
-      assert_equal(data, File.read(file))
+      pact_baza.durable_load(42, file)
+      assert_equal('loaded content', File.read(file))
     end
   end
 
   def test_durable_load_empty_content
-    WebMock.disable_net_connect!
+    zerocracy_api
+      .given('durable is empty')
+      .upon_receiving('a durable load request for empty content')
+      .with(method: :get, path: '/durables/42')
+      .will_respond_with(status: 206, body: '', headers: { 'Content-Range' => 'bytes 0-0/0' })
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
-      stub_request(:get, 'https://example.org:443/durables/42')
-        .with(headers: { 'X-Zerocracy-Token' => '000' })
-        .to_return(status: 206, body: '', headers: { 'Content-Range' => 'bytes 0-0/0' })
-      fake_baza.durable_load(42, file)
+      pact_baza.durable_load(42, file)
       assert_equal('', File.read(file))
     end
   end
 
-  def test_durable_load_in_chunks
-    WebMock.disable_net_connect!
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'loaded.txt')
-      stub_request(:get, 'https://example.org:443/durables/42')
-        .with(headers: { 'Range' => 'bytes=0-' })
-        .to_return(status: 206, body: '', headers: { 'Content-Range' => 'bytes 0-0/*' })
-      stub_request(:get, 'https://example.org:443/durables/42')
-        .with(headers: { 'Range' => 'bytes=0-' })
-        .to_return(status: 206, body: 'привет', headers: { 'Content-Range' => 'bytes 0-11/25' })
-      stub_request(:get, 'https://example.org:443/durables/42')
-        .with(headers: { 'Range' => 'bytes=12-' })
-        .to_return(status: 206, body: " друг \xFF\xFE\x12", headers: { 'Content-Range' => 'bytes 12-24/25' })
-      fake_baza.durable_load(42, file)
-      assert_equal("привет друг \xFF\xFE\x12", File.read(file))
-    end
-  end
-
-  def test_durable_load_with_broken_compression
-    WebMock.disable_net_connect!
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'loaded.txt')
-      stub_request(:get, 'https://example.org:443/durables/42').to_return(
-        status: 200, body: 'this is not gzip!', headers: { 'Content-Encoding' => 'gzip' }
-      )
-      assert_raises(BazaRb::BadCompression) { fake_baza.durable_load(42, file) }
-    end
-  end
-
   def test_durable_lock
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
-    stub_request(:post, %r{https://example.org:443/durables/42/lock})
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 302)
-    fake_baza.durable_lock(42, 'test-owner')
+    zerocracy_api
+      .given('durable exists')
+      .upon_receiving('a request for CSRF token for durable lock')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: 'token')
+    zerocracy_api
+      .given('durable exists')
+      .upon_receiving('a durable lock request')
+      .with(method: :post, path: '/durables/42/lock')
+      .will_respond_with(status: 302)
+    pact_baza.durable_lock(42, 'test-owner')
   end
 
   def test_durable_unlock
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org/csrf').to_return(body: 'token')
-    stub_request(:post, %r{https://example.org:443/durables/42/unlock})
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 302)
-    fake_baza.durable_unlock(42, 'test-owner')
+    zerocracy_api
+      .given('durable is locked')
+      .upon_receiving('a request for CSRF token for durable unlock')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: 'token')
+    zerocracy_api
+      .given('durable is locked')
+      .upon_receiving('a durable unlock request')
+      .with(method: :post, path: '/durables/42/unlock')
+      .will_respond_with(status: 302)
+    pact_baza.durable_unlock(42, 'test-owner')
   end
 
   def test_fee
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/csrf')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 200, body: 'csrf-token')
-    stub_request(:post, 'https://example.org:443/account/fee')
-      .with(
-        headers: { 'X-Zerocracy-Token' => '000' },
-        body: {
-          '_csrf' => 'csrf-token',
-          'tab' => 'unknown',
-          'amount' => '10.500000',
-          'summary' => 'Test fee',
-          'job' => '123'
-        }
-      )
-      .to_return(status: 302, headers: { 'X-Zerocracy-ReceiptId' => '456' })
-    receipt = fake_baza.fee('unknown', 10.5, 'Test fee', 123)
+    zerocracy_api
+      .given('user exists')
+      .upon_receiving('a request for CSRF token for fee')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: 'csrf-token')
+    zerocracy_api
+      .given('user exists')
+      .upon_receiving('a fee payment request')
+      .with(method: :post, path: '/account/fee')
+      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => '456' })
+    receipt = pact_baza.fee('unknown', 10.5, 'Test fee', 123)
     assert_equal(456, receipt)
   end
 
   def test_enter
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/result?badge=test-badge')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 200, body: 'cached result')
-    result = fake_baza.enter('test-valve', 'test-badge', 'test reason', 123) { 'new result' }
+    zerocracy_api
+      .given('result is cached')
+      .upon_receiving('an enter request with cached result')
+      .with(method: :get, path: '/result', query: 'badge=test-badge')
+      .will_respond_with(status: 200, body: 'cached result')
+    result = pact_baza.enter('test-valve', 'test-badge', 'test reason', 123) { 'new result' }
     assert_equal('cached result', result)
   end
 
   def test_enter_not_cached
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/result?badge=test-badge')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 204)
-    stub_request(:get, 'https://example.org:443/csrf')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 200, body: 'csrf-token')
-    stub_request(:post, 'https://example.org:443/valves?job=123')
-      .with(
-        headers: { 'X-Zerocracy-Token' => '000' },
-        body: {
-          '_csrf' => 'csrf-token',
-          'name' => 'test-valve',
-          'pname' => 'test-valve',
-          'badge' => 'test-badge',
-          'why' => 'test reason',
-          'result' => 'new result'
-        }
-      )
-      .to_return(status: 302)
-    result = fake_baza.enter('test-valve', 'test-badge', 'test reason', 123) { 'new result' }
+    zerocracy_api
+      .given('result is not cached')
+      .upon_receiving('an enter request without cached result')
+      .with(method: :get, path: '/result', query: 'badge=test-badge')
+      .will_respond_with(status: 204)
+    zerocracy_api
+      .given('result is not cached')
+      .upon_receiving('a request for CSRF token for valve')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: 'csrf-token')
+    zerocracy_api
+      .given('result is not cached')
+      .upon_receiving('a valve creation request')
+      .with(method: :post, path: '/valves', query: 'job=123')
+      .will_respond_with(status: 302)
+    result = pact_baza.enter('test-valve', 'test-badge', 'test reason', 123) { 'new result' }
     assert_equal('new result', result)
   end
 
   def test_durable_find_found
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/durable-find?file=test.txt&jname=test-job&pname=test-job')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 200, body: '42')
-    id = fake_baza.durable_find('test-job', 'test.txt')
+    zerocracy_api
+      .given('durable exists')
+      .upon_receiving('a durable find request')
+      .with(method: :get, path: '/durable-find', query: 'file=test.txt&jname=test-job&pname=test-job')
+      .will_respond_with(status: 200, body: '42')
+    id = pact_baza.durable_find('test-job', 'test.txt')
     assert_equal(42, id)
   end
 
   def test_durable_find_not_found
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/durable-find?file=test.txt&jname=test-job&pname=test-job')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 404)
-    id = fake_baza.durable_find('test-job', 'test.txt')
+    zerocracy_api
+      .given('durable does not exist')
+      .upon_receiving('a durable find request that returns not found')
+      .with(method: :get, path: '/durable-find', query: 'file=test.txt&jname=test-job&pname=test-job')
+      .will_respond_with(status: 404)
+    id = pact_baza.durable_find('test-job', 'test.txt')
     assert_nil(id)
   end
 
-  def test_checked_with_500_error
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/test')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 500, headers: { 'X-Zerocracy-Failure' => 'Boom-500', 'X-Zerocracy-FailureMark' => 'mark-500' })
-    error =
-      assert_raises(BazaRb::ServerFailure) do
-        fake_baza.send(
-          :checked,
-          Typhoeus.get('https://example.org:443/test', headers: { 'X-Zerocracy-Token' => '000' })
-        )
-      end
-    assert_includes(error.message, 'Invalid response code #500')
-    assert_includes(error.message, "most probably it's an internal error on the server")
-    assert_includes(error.message, 'Boom-500')
-    assert_includes(error.message, 'mark-500')
-  end
-
-  def test_checked_with_503_error
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/test')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(
-        status: 503,
-        headers: {
-          'X-Zerocracy-Failure' => 'Service unavailable',
-          'X-Zerocracy-FailureMark' => 'mark-503'
-        }
-      )
-    error =
-      assert_raises(BazaRb::ServerFailure) do
-        fake_baza.send(
-          :checked,
-          Typhoeus.get('https://example.org:443/test', headers: { 'X-Zerocracy-Token' => '000' })
-        )
-      end
-    assert_includes(error.message, 'Invalid response code #503')
-    assert_includes(error.message, "most probably it's an internal error on the server")
-    assert_includes(error.message, 'Service unavailable')
-    assert_includes(error.message, 'mark-503')
-  end
-
-  def test_checked_with_404_error
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/test')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 404)
-    error =
-      assert_raises(BazaRb::ServerFailure) do
-        fake_baza.send(
-          :checked,
-          Typhoeus.get('https://example.org:443/test', headers: { 'X-Zerocracy-Token' => '000' })
-        )
-      end
-    assert_includes(error.message, 'Invalid response code #404')
-    assert_includes(error.message, 'most probably you are trying to reach a wrong server')
-  end
-
-  def test_checked_with_0_error
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/test')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 0)
-    error =
-      assert_raises(BazaRb::ServerFailure) do
-        fake_baza.send(
-          :checked,
-          Typhoeus.get('https://example.org:443/test', headers: { 'X-Zerocracy-Token' => '000' })
-        )
-      end
-    assert_includes(error.message, 'Invalid response code #0')
-    assert_includes(error.message, 'most likely a connection failure')
-  end
-
-  def test_push_without_compression
-    WebMock.disable_net_connect!
-    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
-    stub_request(:put, 'https://example.org:443/push/test')
-      .with(
-        headers: {
-          'X-Zerocracy-Token' => '000',
-          'Content-Type' => 'application/octet-stream',
-          'Content-Length' => '4'
-        },
-        body: 'data'
-      )
-      .to_return(status: 200, body: '123')
-    baza.push('test', 'data', [])
-  end
-
   def test_get_request_retries_on_429_status_code
-    WebMock.disable_net_connect!
-    stub_request(:get, 'https://example.org:443/whoami')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 429)
-      .times(3)
-    stub_request(:get, 'https://example.org:443/whoami')
-      .with(headers: { 'X-Zerocracy-Token' => '000' })
-      .to_return(status: 200, body: 'testuser')
-    assert_equal('testuser', fake_baza.whoami)
-  end
-
-  def test_download_retries_on_busy_server
-    WebMock.disable_net_connect!
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'download.txt')
-      attempts = 0
-      stub_request(:get, 'https://example.org:443/file')
-        .with(headers: { 'Range' => 'bytes=0-' })
-        .to_return do |_request|
-          attempts += 1
-          if attempts < 2
-            { status: 429, body: 'Too Many Requests', headers: {} }
-          else
-            { status: 200, body: 'success content', headers: {} }
-          end
-        end
-      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
-      baza.send(:download, baza.send(:home).append('file'), file)
-      assert_equal(2, attempts, 'Expected two HTTP calls due to 429 retries')
-      assert_equal('success content', File.read(file))
-    end
-  end
-
-  def test_upload_retries_on_busy_server
-    WebMock.disable_net_connect!
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'upload.txt')
-      File.write(file, 'test content')
-      attempts = 0
-      stub_request(:put, 'https://example.org:443/file')
-        .to_return do |_request|
-          attempts += 1
-          if attempts < 2
-            { status: 429, body: 'Too Many Requests' }
-          else
-            { status: 200, body: 'OK' }
-          end
-        end
-      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
-      baza.send(:upload, baza.send(:home).append('file'), file)
-      assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries')
-    end
-  end
-
-  def test_durable_load_from_sinatra
-    WebMock.enable_net_connect!
-    Dir.mktmpdir do |dir|
-      with_sinatra_server do |baza|
-        file = File.join(dir, 'x.txt')
-        baza.durable_load(42, file)
-        assert_equal("Hello, \xFF\xFE\x12!", File.read(file))
-      end
-    end
-  end
-
-  def test_download_sticks_host
-    WebMock.disable_net_connect!
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'test.txt')
-      host = 'example.org'
-      other = 'server2.example.org'
-      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
-      stub_request(:get, "https://#{host}:443/file")
-        .with(headers: { 'Range' => 'bytes=0-' })
-        .to_return(
-          status: 200,
-          body: 'file content',
-          headers: { 'X-Zerocracy-Host' => other }
-        )
-      baza.send(:download, baza.send(:home).append('file'), file)
-      assert_equal('file content', File.read(file), 'File should be downloaded correctly')
-      file2 = File.join(dir, 'test2.txt')
-      stub_request(:get, "https://#{other}:443/file2")
-        .with(headers: { 'Range' => 'bytes=0-' })
-        .to_return(
-          status: 200,
-          body: 'second file',
-          headers: {}
-        )
-      baza.send(:download, baza.send(:home).append('file2'), file2)
-      assert_equal('second file', File.read(file2), 'Second request should go to new host')
-    end
-  end
-
-  def test_download_switches_host_mid_range
-    WebMock.disable_net_connect!
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'chunked.txt')
-      host = 'example.org'
-      other = 'server2.example.org'
-      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
-      stub_request(:get, "https://#{host}:443/file")
-        .with(headers: { 'Range' => 'bytes=0-' })
-        .to_return(
-          status: 206,
-          body: 'first ',
-          headers: {
-            'X-Zerocracy-Host' => other,
-            'Content-Range' => 'bytes 0-5/11'
-          }
-        )
-      stub_request(:get, "https://#{other}:443/file")
-        .with(headers: { 'Range' => 'bytes=6-' })
-        .to_return(
-          status: 200,
-          body: 'chunk',
-          headers: {}
-        )
-      baza.send(:download, baza.send(:home).append('file'), file)
-      assert_equal('first chunk', File.read(file), 'All chunks should be downloaded')
-    end
-  end
-
-  def test_upload_sticks_host
-    WebMock.disable_net_connect!
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'upload.txt')
-      File.write(file, 'test data')
-      host = 'example.org'
-      other = 'server2.example.org'
-      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
-      stub_request(:put, "https://#{host}:443/file")
-        .to_return(
-          status: 200,
-          body: 'OK',
-          headers: { 'X-Zerocracy-Host' => other }
-        )
-      baza.send(:upload, baza.send(:home).append('file'), file)
-      stub_request(:put, "https://#{other}:443/file2")
-        .to_return(
-          status: 200,
-          body: 'OK'
-        )
-      baza.send(:upload, baza.send(:home).append('file2'), file)
-    end
-  end
-
-  def test_upload_switches_host_mid_chunks
-    WebMock.disable_net_connect!
-    Dir.mktmpdir do |dir|
-      file = File.join(dir, 'large.txt')
-      File.write(file, 'x' * 2_000_000)
-      host = 'example.org'
-      other = 'server2.example.org'
-      baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
-      stub_request(:put, "https://#{host}:443/file")
-        .with(headers: { 'X-Zerocracy-Chunk' => '0' })
-        .to_return(
-          status: 200,
-          body: 'OK',
-          headers: { 'X-Zerocracy-Host' => other }
-        )
-      stub_request(:put, "https://#{other}:443/file")
-        .with(headers: { 'X-Zerocracy-Chunk' => '1' })
-        .to_return(
-          status: 200,
-          body: 'OK',
-          headers: {}
-        )
-      stub_request(:put, "https://#{other}:443/file")
-        .with(headers: { 'X-Zerocracy-Chunk' => '2' })
-        .to_return(
-          status: 200,
-          body: 'OK',
-          headers: {}
-        )
-      baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
-    end
+    zerocracy_api
+      .given('server is busy')
+      .upon_receiving('a whoami request that eventually succeeds')
+      .with(method: :get, path: '/whoami')
+      .will_respond_with(status: 200, body: 'testuser')
+    assert_equal('testuser', pact_baza(pause: 0).whoami)
   end
 
   private
 
-  def with_sinatra_server
-    Dir.mktmpdir do |dir|
-      app = File.join(dir, 'app.rb')
-      File.write(
-        app,
-        "
-        require 'rack'
-        require 'sinatra'
-        use Rack::Deflater
-        get '/' do
-          'I am alive'
-        end
-        get '/durables/42' do
-          \"Hello, \\xFF\\xFE\\x12!\"
-        end
-        "
-      )
-      RandomPort::Pool::SINGLETON.acquire do |port|
-        host = '127.0.0.1'
-        qbash("bundle exec ruby #{Shellwords.escape(app)} -p #{port}", log: Loog::NULL, accept: nil) do
-          loop do
-            break if Typhoeus::Request.get("http://#{host}:#{port}").code == 200
-            sleep(0.1)
-          end
-          yield BazaRb.new(host, port, '0000-0000-0000', ssl: false)
-        end
-      end
-    end
-  end
-
-  def with_http_server(code, response, opts = {})
-    opts = { ssl: false, timeout: 1 }.merge(opts)
-    WebMock.enable_net_connect!
-    req = WEBrick::HTTPRequest.new(WEBrick::Config::HTTP)
-    host = '127.0.0.1'
-    RandomPort::Pool::SINGLETON.acquire do |port|
-      server = TCPServer.new(host, port)
-      t =
-        Thread.new do
-          socket = server.accept
-          req.parse(socket)
-          body = req.body
-          len = req.header['content-length'].first.to_i
-          if body.nil? || len == body.size
-            socket.puts "HTTP/1.1 #{code} OK\r\nContent-Length: #{response.length}\r\n\r\n#{response}"
-          else
-            socket.puts "HTTP/1.1 400 Bad Request\r\n"
-          end
-          socket.close
-        end
-      yield BazaRb.new(host, port, '0000', **opts)
-      t.terminate
-      assert(t.join(1))
-    end
-    req
-  end
-
-  def fake_baza(compress: true)
-    BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress:)
+  def pact_baza(pause: 1)
+    BazaRb.new(
+      'localhost',
+      zerocracy_api.mock_service_base_url.split(':').last.to_i,
+      '000',
+      ssl: false,
+      loog: Loog::NULL,
+      compress: false,
+      pause:
+    )
   end
 end
