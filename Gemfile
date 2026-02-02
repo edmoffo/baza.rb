@@ -6,13 +6,13 @@
 source 'https://rubygems.org'
 gemspec
 
+gem 'activesupport', '~>7.0', require: false
 gem 'base64', '~>0.3', require: false
 gem 'factbase', '~>0.16', require: false
 gem 'minitest', '~>6.0', require: false
 gem 'minitest-reporters', '~>1.7', require: false
 gem 'online', '~>0.1', require: false
 gem 'os', '~>1.1', require: false
-gem 'activesupport', '~>7.0', require: false
 gem 'pact', '~>1.65', require: false
 gem 'pact-ffi', '0.4.28.0', require: false
 gem 'puma', '~>7.0', require: false
