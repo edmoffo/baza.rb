@@ -41,8 +41,7 @@ class TestBazaRb < Minitest::Test
       body = int.dig('response', 'body')
       next if body.nil? || body.empty?
       next if answers.include?(body)
-      type = int.dig('response', 'headers', 'Content-Type')
-      next if type&.start_with?('text/')
+      int.dig('response', 'headers', 'Content-Type')
       rules = int.dig('response', 'matchingRules')
       raise "Response body '#{body}' in '#{int['description']}' looks dynamic but has no matchingRules" if
         rules.nil? && body.match?(/^[0-9]+(\.[0-9]+)?$/)
@@ -340,7 +339,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 200,
-        body: '0',
+        body: match_regex(/^[0-9]+$/, '0'),
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
@@ -474,7 +473,7 @@ class TestBazaRb < Minitest::Test
         method: 'GET',
         path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42')
       )
-      .will_respond_with(status: 200, body: match_regex(/^.+$/, 'some data'))
+      .will_respond_with(status: 200, body: 'some data', headers: { 'Content-Type' => 'text/plain' })
     execute_pact do |server|
       baza = baza_client(server.port)
       Dir.mktmpdir do |dir|
