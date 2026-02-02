@@ -411,7 +411,7 @@ class BazaRb
     raise 'The "file" may not be empty' if file.empty?
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('durable-find').add(jname: pname, pname:, file:), [200, 404])
+      ret = get(home.append('durable-find').add(pname:, file:), [200, 404])
       if ret.code == 200
         id = ret.body.to_i
         throw :"Found durable ##{id} for job \"#{pname}\" file \"#{file}\" at #{@host}"

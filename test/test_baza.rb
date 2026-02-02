@@ -355,7 +355,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable exists')
       .upon_receiving('a durable find request')
-      .with(method: :get, path: '/durable-find', query: 'file=test.txt&jname=test-job&pname=test-job')
+      .with(method: :get, path: '/durable-find', query: 'file=test.txt&pname=test-job')
       .will_respond_with(status: 200, body: ID)
     id = pact_baza.durable_find('test-job', 'test.txt')
     assert_equal(42, id)
@@ -365,7 +365,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable does not exist')
       .upon_receiving('a durable find request that returns not found')
-      .with(method: :get, path: '/durable-find', query: 'file=test.txt&jname=test-job&pname=test-job')
+      .with(method: :get, path: '/durable-find', query: 'file=test.txt&pname=test-job')
       .will_respond_with(status: 404)
     id = pact_baza.durable_find('test-job', 'test.txt')
     assert_nil(id)
