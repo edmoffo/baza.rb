@@ -819,7 +819,7 @@
         "path": "/stdout/42.txt"
       },
       "response": {
-        "body": "hello, друг!",
+        "body": "hello, \u0434\u0440\u0443\u0433!",
         "headers": {
           "Content-Type": "text/plain"
         },
@@ -1318,6 +1318,11 @@
     }
   ],
   "metadata": {
+    "client": {
+      "date": "2026-02-02T16:55:08Z",
+      "name": "BazaRb",
+      "version": "0.0.0"
+    },
     "pact-ruby-v2": {
       "pact-ffi": "0.4.28"
     },
@@ -1328,11 +1333,6 @@
     },
     "pactSpecification": {
       "version": "3.0.0"
-    },
-    "client": {
-      "name": "BazaRb",
-      "version": "0.0.0",
-      "date": "2026-02-02T16:55:08Z"
     }
   },
   "provider": {
