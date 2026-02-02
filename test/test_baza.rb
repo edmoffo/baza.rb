@@ -20,15 +20,28 @@ class TestBazaRb < Minitest::Test
   Minitest.after_run do
     WebMock.allow_net_connect!
     pact = File.join(__dir__, '..', 'BazaRb-Zerocracy.json')
-    if File.exist?(pact)
-      json = JSON.parse(File.read(pact))
-      json['metadata']['client'] = {
-        'name' => 'BazaRb',
-        'version' => BazaRb::VERSION,
-        'date' => Time.now.utc.iso8601
-      }
-      File.write(pact, JSON.pretty_generate(json))
+    raise "Pact file #{pact} not found" unless File.exist?(pact)
+    json = JSON.parse(File.read(pact))
+    raise 'Pact consumer name missing' unless json.dig('consumer', 'name')
+    raise 'Pact provider name missing' unless json.dig('provider', 'name')
+    raise 'Pact interactions missing' unless json['interactions'].is_a?(Array)
+    raise 'Pact interactions empty' if json['interactions'].empty?
+    json['interactions'].each do |int|
+      raise "Interaction missing description: #{int}" unless int['description']
+      raise "Interaction missing request: #{int['description']}" unless int['request']
+      raise "Request missing method: #{int['description']}" unless int.dig('request', 'method')
+      raise "Request missing path: #{int['description']}" unless int.dig('request', 'path')
+      raise "Interaction missing response: #{int['description']}" unless int['response']
+      raise "Response missing status: #{int['description']}" unless int.dig('response', 'status')
     end
+    raise 'Pact metadata missing' unless json['metadata']
+    raise 'Pact specification version missing' unless json.dig('metadata', 'pactSpecification', 'version')
+    json['metadata']['client'] = {
+      'name' => 'BazaRb',
+      'version' => BazaRb::VERSION,
+      'date' => Time.now.utc.iso8601
+    }
+    File.write(pact, JSON.pretty_generate(json))
   end
 
   def setup
