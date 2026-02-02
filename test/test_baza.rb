@@ -36,10 +36,12 @@ class TestBazaRb < Minitest::Test
   end
 
   Minitest.after_run do
+    WebMock.allow_net_connect!
     HOOKS.after_suite
   end
 
   def setup
+    WebMock.allow_net_connect!
     HOOKS.before_each(name)
   end
 
