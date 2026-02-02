@@ -26,6 +26,9 @@ class TestBazaRb < Minitest::Test
   # Receipt ID matcher - accepts any positive integer.
   RECEIPT = Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
 
+  # Integer ID matcher - accepts any positive integer.
+  ID = Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
+
   def self.run_one_method(klass, method, reporter)
     HOOKS.before_all if @pact_started.nil?
     @pact_started = true
@@ -100,7 +103,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a finished check request')
-      .with(method: :get, path: '/finished/42')
+      .with(method: :get, path: job_path('/finished'))
       .will_respond_with(status: 200, body: 'yes')
     assert(pact_baza.finished?(42))
   end
@@ -109,7 +112,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a verification verdict request')
-      .with(method: :get, path: '/jobs/42/verified.txt')
+      .with(method: :get, path: job_path('/jobs', '/verified.txt'))
       .will_respond_with(status: 200, body: 'done')
     assert(pact_baza.verified(42))
   end
@@ -133,7 +136,7 @@ class TestBazaRb < Minitest::Test
       .given('product exists')
       .upon_receiving('a push request')
       .with(method: :put, path: '/push/simple')
-      .will_respond_with(status: 200, body: '42')
+      .will_respond_with(status: 200, body: ID)
     pact_baza.push('simple', 'hello, world!', [])
   end
 
@@ -153,7 +156,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a finish request')
-      .with(method: :put, path: '/finish', query: 'id=42')
+      .with(method: :put, path: '/finish', query: job_query('id'))
       .will_respond_with(status: 200)
     Tempfile.open do |zip|
       File.binwrite(zip.path, 'test data')
@@ -166,7 +169,7 @@ class TestBazaRb < Minitest::Test
       .given('job exists')
       .upon_receiving('a recent job check')
       .with(method: :get, path: '/recent/simple.txt')
-      .will_respond_with(status: 200, body: '42')
+      .will_respond_with(status: 200, body: ID)
     assert_equal(42, pact_baza.recent('simple'))
   end
 
@@ -183,7 +186,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('an exit code request')
-      .with(method: :get, path: '/exit/42.txt')
+      .with(method: :get, path: job_path('/exit', '.txt'))
       .will_respond_with(status: 200, body: '0')
     assert_predicate(pact_baza.exit_code(42), :zero?)
   end
@@ -192,7 +195,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a stdout request')
-      .with(method: :get, path: '/stdout/42.txt')
+      .with(method: :get, path: job_path('/stdout', '.txt'))
       .will_respond_with(status: 200, body: 'hello!')
     refute_empty(pact_baza.stdout(42))
   end
@@ -201,9 +204,9 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a pull request')
-      .with(method: :get, path: '/pull/333.fb')
+      .with(method: :get, path: job_path('/pull', '.fb'))
       .will_respond_with(status: 200, body: 'hello, world!')
-    assert(pact_baza.pull(333).start_with?('hello'))
+    assert(pact_baza.pull(42).start_with?('hello'))
   end
 
   def test_simple_lock_success
@@ -238,7 +241,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable exists')
       .upon_receiving('a durable save request')
-      .with(method: :put, path: '/durables/42')
+      .with(method: :put, path: job_path('/durables'))
       .will_respond_with(status: 200)
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'test.txt')
@@ -251,7 +254,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable exists')
       .upon_receiving('a durable load request')
-      .with(method: :get, path: '/durables/42')
+      .with(method: :get, path: job_path('/durables'))
       .will_respond_with(status: 200, body: 'loaded content')
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
@@ -264,7 +267,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable is empty')
       .upon_receiving('a durable load request for empty content')
-      .with(method: :get, path: '/durables/42')
+      .with(method: :get, path: job_path('/durables'))
       .will_respond_with(status: 206, body: '', headers: { 'Content-Range' => 'bytes 0-0/0' })
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
@@ -282,7 +285,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable exists')
       .upon_receiving('a durable lock request')
-      .with(method: :post, path: '/durables/42/lock')
+      .with(method: :post, path: job_path('/durables', '/lock'))
       .will_respond_with(status: 302)
     pact_baza.durable_lock(42, 'test-owner')
   end
@@ -296,7 +299,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable is locked')
       .upon_receiving('a durable unlock request')
-      .with(method: :post, path: '/durables/42/unlock')
+      .with(method: :post, path: job_path('/durables', '/unlock'))
       .will_respond_with(status: 302)
     pact_baza.durable_unlock(42, 'test-owner')
   end
@@ -351,7 +354,7 @@ class TestBazaRb < Minitest::Test
       .given('durable exists')
       .upon_receiving('a durable find request')
       .with(method: :get, path: '/durable-find', query: 'file=test.txt&jname=test-job&pname=test-job')
-      .will_respond_with(status: 200, body: '42')
+      .will_respond_with(status: 200, body: ID)
     id = pact_baza.durable_find('test-job', 'test.txt')
     assert_equal(42, id)
   end
@@ -387,5 +390,13 @@ class TestBazaRb < Minitest::Test
       compress: false,
       pause:
     )
+  end
+
+  def job_path(prefix, suffix = '')
+    Pact.term(generate: "#{prefix}/42#{suffix}", matcher: %r{^#{Regexp.escape(prefix)}/[1-9][0-9]*#{Regexp.escape(suffix)}$})
+  end
+
+  def job_query(prefix)
+    Pact.term(generate: "#{prefix}=42", matcher: /^#{Regexp.escape(prefix)}=[1-9][0-9]*$/)
   end
 end

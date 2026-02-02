@@ -10,6 +10,8 @@ require 'webmock'
 WebMock.allow_net_connect!
 ENV['PACT_DO_NOT_TRACK'] = 'true'
 
+Warning[:deprecated] = false
+
 PROJECT_ROOT = File.expand_path('..', __dir__)
 PACT_LOG_DIR = File.expand_path('log', PROJECT_ROOT)
 
