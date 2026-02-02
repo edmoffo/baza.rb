@@ -307,7 +307,7 @@ class TestBazaRb < Minitest::Test
 
   def test_pulls_factbase_file
     fb = Factbase.new
-    fb.insert.then { |f| f.foo = 42 }
+    fb.insert.then { |f| f.foo = 3.1416 }
     fb.export
     zerocracy_api
       .given('job #42 exists')
