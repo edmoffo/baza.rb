@@ -40,13 +40,14 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_transfers_payment
-    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(status: 200, body: csrf)
     interaction
       .given('user is authenticated')
+      .given('user is rich')
       .upon_receiving('a transfer payment request')
       .with_request(
         method: 'POST',
@@ -71,13 +72,15 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_transfers_payment_with_job
-    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(status: 200, body: csrf)
     interaction
       .given('user is authenticated')
+      .given('user is rich')
+      .given('job exists', { 'id' => 42 })
       .upon_receiving('a transfer payment request with job')
       .with_request(
         method: 'POST',
@@ -121,6 +124,7 @@ class TestBazaRb < Minitest::Test
   def test_reads_balance
     interaction
       .given('user is authenticated')
+      .given('user is rich')
       .upon_receiving('a balance request')
       .with_request(method: 'GET', path: '/account/balance')
       .will_respond_with(
@@ -136,6 +140,7 @@ class TestBazaRb < Minitest::Test
 
   def test_checks_whether_job_is_finished
     interaction
+      .given('user is authenticated')
       .given('job exists', { 'id' => 42 })
       .upon_receiving('a finished check request')
       .with_request(
@@ -155,6 +160,7 @@ class TestBazaRb < Minitest::Test
 
   def test_reads_verification_verdict
     interaction
+      .given('user is authenticated')
       .given('job exists', { 'id' => 42 })
       .upon_receiving('a verification verdict request')
       .with_request(
@@ -173,13 +179,15 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_unlocks_job_by_name
-    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(status: 200, body: csrf)
     interaction
-      .given('job exists')
+      .given('user is authenticated')
+      .given('job exists', { 'id' => 42 })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('an unlock request')
       .with_request(
         method: 'POST',
@@ -199,7 +207,9 @@ class TestBazaRb < Minitest::Test
 
   def test_pushes_to_create_job
     interaction
-      .given('product exists', { 'name' => 'foo' })
+      .given('user is authenticated')
+      .given('user is rich')
+      .given('product exists', { 'pname' => 'foo' })
       .upon_receiving('a push request')
       .with_request(
         method: 'PUT',
@@ -217,6 +227,7 @@ class TestBazaRb < Minitest::Test
 
   def test_pops_no_jobs
     interaction
+      .given('user is authenticated')
       .given('queue is empty')
       .upon_receiving('a pop request with no job')
       .with_request(
@@ -236,6 +247,7 @@ class TestBazaRb < Minitest::Test
 
   def test_finishes_jobs
     interaction
+      .given('user is authenticated')
       .given('job exists', { 'id' => 42 })
       .upon_receiving('a finish request')
       .with_request(
@@ -255,6 +267,7 @@ class TestBazaRb < Minitest::Test
 
   def test_finds_recent_job
     interaction
+      .given('user is authenticated')
       .given('job exists', { 'id' => 42 })
       .upon_receiving('a recent job check')
       .with_request(
@@ -274,7 +287,8 @@ class TestBazaRb < Minitest::Test
 
   def test_checks_product_existence
     interaction
-      .given('product exists', { 'name' => 'foo' })
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'foo' })
       .upon_receiving('an exists check')
       .with_request(
         method: 'GET',
@@ -293,6 +307,7 @@ class TestBazaRb < Minitest::Test
 
   def test_checks_job_exit_code
     interaction
+      .given('user is authenticated')
       .given('job exists', { 'id' => 42 })
       .upon_receiving('an exit code request')
       .with_request(
@@ -313,6 +328,7 @@ class TestBazaRb < Minitest::Test
   def test_reads_stdout
     body = 'hello, друг!'
     interaction
+      .given('user is authenticated')
       .given('job exists', { 'id' => 42 })
       .upon_receiving('a stdout request')
       .with_request(
@@ -335,6 +351,7 @@ class TestBazaRb < Minitest::Test
     fb.insert.then { |f| f.foo = 3.1416 }
     fb.export
     interaction
+      .given('user is authenticated')
       .given('job exists', { 'id' => 42 })
       .upon_receiving('a pull request')
       .with_request(
@@ -349,13 +366,15 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_locks_product
-    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(status: 200, body: csrf)
     interaction
-      .given('product exists', { 'name' => 'foo' })
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'foo' })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a lock request')
       .with_request(
         method: 'POST',
@@ -374,13 +393,16 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_fails_to_lock
-    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(status: 200, body: csrf)
     interaction
-      .given('product is locked', { 'name' => 'foo' })
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'foo' })
+      .given('product is locked', { 'pname' => 'foo' })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a lock request that fails')
       .with_request(
         method: 'POST',
@@ -401,6 +423,7 @@ class TestBazaRb < Minitest::Test
   def test_saves_durable
     body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
     interaction
+      .given('user is authenticated')
       .given('durable exists', { 'id' => 42 })
       .upon_receiving('a durable save request')
       .with_request(
@@ -420,6 +443,7 @@ class TestBazaRb < Minitest::Test
 
   def test_loads_durable
     interaction
+      .given('user is authenticated')
       .given('durable exists', { 'id' => 42 })
       .upon_receiving('a durable load request')
       .with_request(
@@ -439,6 +463,8 @@ class TestBazaRb < Minitest::Test
 
   def test_loads_durable_empty_content
     interaction
+      .given('user is authenticated')
+      .given('durable exists', { 'id' => 42 })
       .given('durable is empty', { 'id' => 42 })
       .upon_receiving('a durable load request for empty content')
       .with_request(
@@ -457,13 +483,15 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_locks_durable
-    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(status: 200, body: csrf)
     interaction
+      .given('user is authenticated')
       .given('durable exists', { 'id' => 42 })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable lock request')
       .with_request(
         method: 'POST',
@@ -482,13 +510,16 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_unlocks_durable
-    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(status: 200, body: csrf)
     interaction
+      .given('user is authenticated')
+      .given('durable exists', { 'id' => 42 })
       .given('durable is locked', { 'id' => 42 })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable unlock request')
       .with_request(
         method: 'POST',
@@ -507,13 +538,15 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_pays_fee
-    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(status: 200, body: csrf)
     interaction
       .given('user is authenticated')
+      .given('user is rich')
+      .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a fee payment request')
       .with_request(
         method: 'POST',
@@ -540,7 +573,10 @@ class TestBazaRb < Minitest::Test
 
   def test_enters_when_cached
     interaction
-      .given('cached result exists', { 'badge' => 'bar', 'job' => 42, 'product' => 'foo', 'result' => 'before' })
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'job' => 42, 'pname' => 'foo' })
+      .given('valve exists', { 'badge' => 'bar', 'job' => 42, 'pname' => 'foo', 'result' => 'before' })
       .upon_receiving('an enter request with cached result')
       .with_request(
         method: 'GET',
@@ -560,9 +596,11 @@ class TestBazaRb < Minitest::Test
   end
 
   def test_enters_when_not_cached
-    csrf = match_regex(/^.+$/, 'csrf-token-example')
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
-      .given('cached result not exists', { 'badge' => 'bar', 'product' => 'foo' })
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'foo' })
+      .given('valve missing', { 'badge' => 'bar', 'pname' => 'foo' })
       .upon_receiving('an enter request without cached result')
       .with_request(
         method: 'GET',
@@ -579,7 +617,11 @@ class TestBazaRb < Minitest::Test
       .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(status: 200, body: csrf)
     interaction
-      .given('job exists without valve', { 'job' => 42, 'product' => 'foo', 'valve' => 'bar' })
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'job' => 42, 'pname' => 'foo' })
+      .given('valve exists', { 'job' => 42, 'pname' => 'foo', 'badge' => 'bar' })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a valve creation request')
       .with_request(
         method: 'POST',
@@ -604,7 +646,9 @@ class TestBazaRb < Minitest::Test
 
   def test_finds_durable
     interaction
-      .given('durable exists for product', { 'file' => 'bar.txt', 'product' => 'foo' })
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'foo' })
+      .given('durable exists', { 'file' => 'bar.txt', 'pname' => 'foo' })
       .upon_receiving('a durable find request')
       .with_request(
         method: 'GET',
@@ -628,7 +672,9 @@ class TestBazaRb < Minitest::Test
 
   def test_doesnt_find_durable
     interaction
-      .given('durable not exists for product', { 'file' => 'bar.txt', 'product' => 'foo' })
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'foo' })
+      .given('durable missing', { 'file' => 'bar.txt', 'pname' => 'foo' })
       .upon_receiving('a durable find request that returns not found')
       .with_request(
         method: 'GET',
