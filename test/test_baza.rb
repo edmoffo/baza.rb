@@ -109,11 +109,10 @@ class TestBazaRb < Minitest::Test
 
   def test_checks_whether_job_is_finished
     zerocracy_api
-      .given('user is logged in')
-      .given('job exists')
+      .given('user is logged in and job exists')
       .upon_receiving('a finished check request')
       .with(method: :get, path: job_path('/finished'))
-      .will_respond_with(status: 200, body: 'yes')
+      .will_respond_with(status: 200, body: Pact.term(generate: 'yes', matcher: /^yes|no$/))
     assert(pact_baza.finished?(42))
   end
 
