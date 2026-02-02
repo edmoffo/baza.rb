@@ -94,12 +94,10 @@ module Pact
             PactFfi.with_body(@pact_interaction, part, type || 'text/plain', body)
           elsif body.is_a?(Pact::V2::Matchers::Base)
             val = body.as_basic['value']
-            if type.nil? && (val.is_a?(String) || val.is_a?(Numeric))
-              PactFfi.with_body(@pact_interaction, part, 'text/plain', val.to_s)
-            elsif type&.start_with?('application/json') || type.nil?
-              PactFfi.with_body(@pact_interaction, part, type || 'application/json', format_value(body))
+            if type.nil? || type.start_with?('text/')
+              PactFfi.with_body(@pact_interaction, part, type || 'text/plain', val.to_s)
             else
-              PactFfi.with_body(@pact_interaction, part, type, val.to_s)
+              PactFfi.with_body(@pact_interaction, part, type, format_value(body))
             end
           else
             PactFfi.with_body(

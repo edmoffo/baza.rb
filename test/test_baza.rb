@@ -36,6 +36,17 @@ class TestBazaRb < Minitest::Test
     end
     raise 'Pact metadata missing' unless json['metadata']
     raise 'Pact specification version missing' unless json.dig('metadata', 'pactSpecification', 'version')
+    answers = %w[yes done]
+    json['interactions'].each do |int|
+      body = int.dig('response', 'body')
+      next if body.nil? || body.empty?
+      next if answers.include?(body)
+      type = int.dig('response', 'headers', 'Content-Type')
+      next if type&.start_with?('text/')
+      rules = int.dig('response', 'matchingRules')
+      raise "Response body '#{body}' in '#{int['description']}' looks dynamic but has no matchingRules" if
+        rules.nil? && body.match?(/^[0-9]+(\.[0-9]+)?$/)
+    end
     json['metadata']['client'] = {
       'name' => 'BazaRb',
       'version' => BazaRb::VERSION,
@@ -713,7 +724,7 @@ class TestBazaRb < Minitest::Test
       port,
       '000',
       ssl: false,
-      loog: Loog::VERBOSE,
+      loog: Loog::NULL,
       compress: false,
       pause:
     )
