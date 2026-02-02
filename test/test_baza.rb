@@ -61,7 +61,11 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('user exists')
       .upon_receiving('a transfer payment request')
-      .with(method: :post, path: '/account/transfer')
+      .with(
+        method: :post,
+        path: '/account/transfer',
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+      )
       .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => RECEIPT })
     id = pact_baza.transfer('jeff', 42.50, 'for fun')
     assert_equal(42, id)
@@ -75,7 +79,11 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('user exists')
       .upon_receiving('a transfer payment request with job')
-      .with(method: :post, path: '/account/transfer')
+      .with(
+        method: :post,
+        path: '/account/transfer',
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+      )
       .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => RECEIPT })
     id = pact_baza.transfer('jeff', 42.50, 'for fun', job: 555)
     assert_equal(42, id)
@@ -222,7 +230,11 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('product exists')
       .upon_receiving('a lock request')
-      .with(method: :post, path: '/lock/name')
+      .with(
+        method: :post,
+        path: '/lock/name',
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+      )
       .will_respond_with(status: 302)
     pact_baza.lock('name', 'owner')
   end
@@ -235,7 +247,11 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('product is locked')
       .upon_receiving('a lock request that fails')
-      .with(method: :post, path: '/lock/name')
+      .with(
+        method: :post,
+        path: '/lock/name',
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+      )
       .will_respond_with(status: 409)
     assert_raises(StandardError) { pact_baza.lock('name', 'owner') }
   end
@@ -287,7 +303,11 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable exists')
       .upon_receiving('a durable lock request')
-      .with(method: :post, path: job_path('/durables', '/lock'))
+      .with(
+        method: :post,
+        path: job_path('/durables', '/lock'),
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+      )
       .will_respond_with(status: 302)
     pact_baza.durable_lock(42, 'test-owner')
   end
@@ -300,7 +320,11 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable is locked')
       .upon_receiving('a durable unlock request')
-      .with(method: :post, path: job_path('/durables', '/unlock'))
+      .with(
+        method: :post,
+        path: job_path('/durables', '/unlock'),
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+      )
       .will_respond_with(status: 302)
     pact_baza.durable_unlock(42, 'test-owner')
   end
@@ -313,7 +337,11 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('user exists')
       .upon_receiving('a fee payment request')
-      .with(method: :post, path: '/account/fee')
+      .with(
+        method: :post,
+        path: '/account/fee',
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+      )
       .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => RECEIPT })
     receipt = pact_baza.fee('unknown', 10.5, 'Test fee', 123)
     assert_equal(42, receipt)
@@ -342,7 +370,12 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('result is not cached')
       .upon_receiving('a valve creation request')
-      .with(method: :post, path: '/valves', query: 'job=123')
+      .with(
+        method: :post,
+        path: '/valves',
+        query: 'job=123',
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+      )
       .will_respond_with(status: 302)
     result = pact_baza.enter('test-valve', 'test-badge', 'test reason', 123) { 'new result' }
     assert_equal('new result', result)
