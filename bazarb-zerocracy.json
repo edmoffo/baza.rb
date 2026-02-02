@@ -7,53 +7,24 @@
   },
   "interactions": [
     {
-      "description": "a request for CSRF token",
+      "description": "a stdout request",
+      "providerState": "job #42 exists",
       "request": {
         "method": "get",
-        "path": "/csrf"
+        "path": "/stdout/42.txt",
+        "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "^\\/stdout\\/[1-9][0-9]*\\.txt$"
+          }
+        }
       },
       "response": {
         "status": 200,
         "headers": {
+          "Content-Type": "text/plain"
         },
-        "body": "csrf-token-example",
-        "matchingRules": {
-          "$.body": {
-            "match": "regex",
-            "regex": "^.+$"
-          }
-        }
-      }
-    },
-    {
-      "description": "a lock request",
-      "providerState": "product \"foo\" exists",
-      "request": {
-        "method": "post",
-        "path": "/lock/foo",
-        "headers": {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        "body": "_csrf=csrf-token-example&owner=the-owner",
-        "matchingRules": {
-          "$.path": {
-            "match": "regex",
-            "regex": "^\\/lock\\/[a-z0-9]+$"
-          },
-          "$.body._csrf": {
-            "match": "regex",
-            "regex": "^.+$"
-          },
-          "$.body.owner": {
-            "match": "regex",
-            "regex": "^.+$"
-          }
-        }
-      },
-      "response": {
-        "status": 302,
-        "headers": {
-        }
+        "body": "hello, друг!"
       }
     }
   ],

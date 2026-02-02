@@ -211,13 +211,21 @@ class TestBazaRb < Minitest::Test
     assert_predicate(pact_baza.exit_code(42), :zero?)
   end
 
-  def test_stdout_read
+  def test_reads_stdout
+    body = 'hello, друг!'
     zerocracy_api
-      .given('job exists')
+      .given('job #42 exists')
       .upon_receiving('a stdout request')
-      .with(method: :get, path: Pact.term(generate: '/stdout/42.txt', matcher: %r{^/stdout/[1-9][0-9]*\.txt$}))
-      .will_respond_with(status: 200, body: 'hello!')
-    refute_empty(pact_baza.stdout(42))
+      .with(
+        method: :get,
+        path: Pact.term(generate: '/stdout/42.txt', matcher: %r{^/stdout/[1-9][0-9]*\.txt$})
+      )
+      .will_respond_with(
+        status: 200,
+        body:,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    assert_equal(body, pact_baza.stdout(42).force_encoding('UTF-8'))
   end
 
   def test_pulls_factbase_file
@@ -289,7 +297,7 @@ class TestBazaRb < Minitest::Test
         method: :put,
         path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$})
       )
-      .will_respond_with(status: 200)
+      .will_respond_with(status: 200, body: '')
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'test.txt')
       File.binwrite(file, body)
