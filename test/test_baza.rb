@@ -109,9 +109,9 @@ class TestBazaRb < Minitest::Test
 
   def test_checks_whether_job_is_finished
     zerocracy_api
-      .given('user is logged in and job exists')
+      .given('user is logged in and job 42 exists')
       .upon_receiving('a finished check request')
-      .with(method: :get, path: job_path('/finished'))
+      .with(method: :get, path: Pact.term(generate: '/finished/42', matcher: %r{^/finished/[1-9][0-9]*$}))
       .will_respond_with(status: 200, body: Pact.term(generate: 'yes', matcher: /^yes|no$/))
     assert(pact_baza.finished?(42))
   end
@@ -120,7 +120,8 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a verification verdict request')
-      .with(method: :get, path: job_path('/jobs', '/verified.txt'))
+      .with(method: :get, path: Pact.term(generate: '/jobs/42/verified.txt',
+                                          matcher: %r{^/jobs/[1-9][0-9]*/verified\.txt$}))
       .will_respond_with(status: 200, body: 'done')
     assert(pact_baza.verified(42))
   end
@@ -169,7 +170,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a finish request')
-      .with(method: :put, path: '/finish', query: job_query('id'))
+      .with(method: :put, path: '/finish', query: Pact.term(generate: 'id=42', matcher: /^id=[1-9][0-9]*$/))
       .will_respond_with(status: 200)
     Tempfile.open do |zip|
       File.binwrite(zip.path, 'test data')
@@ -199,7 +200,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('an exit code request')
-      .with(method: :get, path: job_path('/exit', '.txt'))
+      .with(method: :get, path: Pact.term(generate: '/exit/42.txt', matcher: %r{^/exit/[1-9][0-9]*\.txt$}))
       .will_respond_with(status: 200, body: '0')
     assert_predicate(pact_baza.exit_code(42), :zero?)
   end
@@ -208,7 +209,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a stdout request')
-      .with(method: :get, path: job_path('/stdout', '.txt'))
+      .with(method: :get, path: Pact.term(generate: '/stdout/42.txt', matcher: %r{^/stdout/[1-9][0-9]*\.txt$}))
       .will_respond_with(status: 200, body: 'hello!')
     refute_empty(pact_baza.stdout(42))
   end
@@ -217,7 +218,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a pull request')
-      .with(method: :get, path: job_path('/pull', '.fb'))
+      .with(method: :get, path: Pact.term(generate: '/pull/42.fb', matcher: %r{^/pull/[1-9][0-9]*\.fb$}))
       .will_respond_with(status: 200, body: 'hello, world!')
     assert(pact_baza.pull(42).start_with?('hello'))
   end
@@ -260,7 +261,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable exists')
       .upon_receiving('a durable save request')
-      .with(method: :put, path: job_path('/durables'))
+      .with(method: :put, path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$}))
       .will_respond_with(status: 200)
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'test.txt')
@@ -273,7 +274,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable exists')
       .upon_receiving('a durable load request')
-      .with(method: :get, path: job_path('/durables'))
+      .with(method: :get, path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$}))
       .will_respond_with(status: 200, body: 'loaded content')
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
@@ -286,7 +287,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('durable is empty')
       .upon_receiving('a durable load request for empty content')
-      .with(method: :get, path: job_path('/durables'))
+      .with(method: :get, path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$}))
       .will_respond_with(status: 206, body: '', headers: { 'Content-Range' => 'bytes 0-0/0' })
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
@@ -305,7 +306,7 @@ class TestBazaRb < Minitest::Test
       .upon_receiving('a durable lock request')
       .with(
         method: :post,
-        path: job_path('/durables', '/lock'),
+        path: Pact.term(generate: '/durables/42/lock', matcher: %r{^/durables/[1-9][0-9]*/lock$}),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
       )
       .will_respond_with(status: 302)
@@ -322,7 +323,7 @@ class TestBazaRb < Minitest::Test
       .upon_receiving('a durable unlock request')
       .with(
         method: :post,
-        path: job_path('/durables', '/unlock'),
+        path: Pact.term(generate: '/durables/42/unlock', matcher: %r{^/durables/[1-9][0-9]*/unlock$}),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
       )
       .will_respond_with(status: 302)
@@ -422,14 +423,5 @@ class TestBazaRb < Minitest::Test
       compress: false,
       pause:
     )
-  end
-
-  def job_path(prefix, suffix = '')
-    pattern = %r{^#{Regexp.escape(prefix)}/[1-9][0-9]*#{Regexp.escape(suffix)}$}
-    Pact.term(generate: "#{prefix}/42#{suffix}", matcher: pattern)
-  end
-
-  def job_query(prefix)
-    Pact.term(generate: "#{prefix}=42", matcher: /^#{Regexp.escape(prefix)}=[1-9][0-9]*$/)
   end
 end
