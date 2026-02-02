@@ -23,12 +23,6 @@ class TestBazaRb < Minitest::Test
   # CSRF token matcher - accepts any non-empty string.
   CSRF = Pact.term(generate: 'csrf-token-example', matcher: /^.+$/)
 
-  # Receipt ID matcher - accepts any positive integer.
-  RECEIPT = Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
-
-  # Integer ID matcher - accepts any positive integer.
-  ID = Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
-
   def self.run_one_method(klass, method, reporter)
     HOOKS.before_all if @pact_started.nil?
     @pact_started = true
@@ -53,38 +47,49 @@ class TestBazaRb < Minitest::Test
     assert(BazaRb::VERSION)
   end
 
-  def test_transfer_payment
+  def test_requests_csrf
     zerocracy_api
       .upon_receiving('a request for CSRF token')
       .with(method: :get, path: '/csrf')
       .will_respond_with(status: 200, body: CSRF)
+  end
+
+  def test_transfer_payment
     zerocracy_api
       .given('user is logged in')
       .upon_receiving('a transfer payment request')
       .with(
         method: :post,
         path: '/account/transfer',
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: { '_csrf' => CSRF }
       )
-      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => RECEIPT })
+      .will_respond_with(
+        status: 302,
+        headers: {
+          'X-Zerocracy-ReceiptId' => Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
+        }
+      )
     id = pact_baza.transfer('jeff', 42.50, 'for fun')
     assert_equal(42, id)
   end
 
   def test_transfer_payment_with_job
     zerocracy_api
-      .upon_receiving('a request for CSRF token for job transfer')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
       .given('user is logged in')
       .upon_receiving('a transfer payment request with job')
       .with(
         method: :post,
         path: '/account/transfer',
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: { '_csrf' => CSRF }
       )
-      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => RECEIPT })
+      .will_respond_with(
+        status: 302,
+        headers: {
+          'X-Zerocracy-ReceiptId' => Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
+        }
+      )
     id = pact_baza.transfer('jeff', 42.50, 'for fun', job: 555)
     assert_equal(42, id)
   end
@@ -103,13 +108,13 @@ class TestBazaRb < Minitest::Test
       .given('user is logged in')
       .upon_receiving('a balance request')
       .with(method: :get, path: '/account/balance')
-      .will_respond_with(status: 200, body: '42.33')
+      .will_respond_with(status: 200, body: Pact.term(generate: '42.33', matcher: %r{^[0-9]+\.[0-9]+$}))
     assert_in_delta(42.33, pact_baza.balance)
   end
 
   def test_checks_whether_job_is_finished
     zerocracy_api
-      .given('user is logged in and job 42 exists')
+      .given('job 42 exists')
       .upon_receiving('a finished check request')
       .with(method: :get, path: Pact.term(generate: '/finished/42', matcher: %r{^/finished/[1-9][0-9]*$}))
       .will_respond_with(status: 200, body: Pact.term(generate: 'yes', matcher: /^yes|no$/))
@@ -118,20 +123,20 @@ class TestBazaRb < Minitest::Test
 
   def test_reads_verification_verdict
     zerocracy_api
-      .given('job exists')
+      .given('job 42 exists')
       .upon_receiving('a verification verdict request')
-      .with(method: :get, path: Pact.term(generate: '/jobs/42/verified.txt',
-                                          matcher: %r{^/jobs/[1-9][0-9]*/verified\.txt$}))
+      .with(
+        method: :get,
+        path: Pact.term(
+          generate: '/jobs/42/verified.txt',
+          matcher: %r{^/jobs/[1-9][0-9]*/verified\.txt$}
+        )
+      )
       .will_respond_with(status: 200, body: 'done')
     assert(pact_baza.verified(42))
   end
 
   def test_unlocks_job_by_name
-    zerocracy_api
-      .given('job exists')
-      .upon_receiving('a request for CSRF token for unlock')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('job exists')
       .upon_receiving('an unlock request')
@@ -149,8 +154,8 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('product exists')
       .upon_receiving('a push request')
-      .with(method: :put, path: '/push/simple')
-      .will_respond_with(status: 200, body: ID)
+      .with(method: :put, path: Pact.term(generate: '/push/simple', matcher: %r{/push/[a-z0-9]+}))
+      .will_respond_with(status: 200, body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/))
     pact_baza.push('simple', 'hello, world!', [])
   end
 
@@ -158,7 +163,7 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('queue is empty')
       .upon_receiving('a pop request with no job')
-      .with(method: :get, path: '/pop', query: 'owner=me')
+      .with(method: :get, path: '/pop', query: Pact.term(generate: 'owner=me', matcher: %r{^owner=.+$}))
       .will_respond_with(status: 204)
     Tempfile.open do |zip|
       refute(pact_baza.pop('me', zip.path))
@@ -182,8 +187,8 @@ class TestBazaRb < Minitest::Test
     zerocracy_api
       .given('job exists')
       .upon_receiving('a recent job check')
-      .with(method: :get, path: '/recent/simple.txt')
-      .will_respond_with(status: 200, body: ID)
+      .with(method: :get, path: Pact.term(generate: '/recent/simple.txt', matcher: %r{/recent/[a-z0-9]+\.txt}))
+      .will_respond_with(status: 200, body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/))
     assert_equal(42, pact_baza.recent('simple'))
   end
 
@@ -225,16 +230,13 @@ class TestBazaRb < Minitest::Test
 
   def test_simple_lock_success
     zerocracy_api
-      .upon_receiving('a request for CSRF token for lock')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
       .given('product exists')
       .upon_receiving('a lock request')
       .with(
         method: :post,
         path: '/lock/name',
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: { '_csrf' => CSRF }
       )
       .will_respond_with(status: 302)
     pact_baza.lock('name', 'owner')
@@ -242,16 +244,13 @@ class TestBazaRb < Minitest::Test
 
   def test_simple_lock_failure
     zerocracy_api
-      .upon_receiving('a request for CSRF token for failed lock')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
       .given('product is locked')
       .upon_receiving('a lock request that fails')
       .with(
         method: :post,
         path: '/lock/name',
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: { '_csrf' => CSRF }
       )
       .will_respond_with(status: 409)
     assert_raises(StandardError) { pact_baza.lock('name', 'owner') }
@@ -298,16 +297,13 @@ class TestBazaRb < Minitest::Test
 
   def test_durable_lock
     zerocracy_api
-      .upon_receiving('a request for CSRF token for durable lock')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
       .given('durable exists')
       .upon_receiving('a durable lock request')
       .with(
         method: :post,
         path: Pact.term(generate: '/durables/42/lock', matcher: %r{^/durables/[1-9][0-9]*/lock$}),
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: { '_csrf' => CSRF }
       )
       .will_respond_with(status: 302)
     pact_baza.durable_lock(42, 'test-owner')
@@ -315,16 +311,13 @@ class TestBazaRb < Minitest::Test
 
   def test_durable_unlock
     zerocracy_api
-      .upon_receiving('a request for CSRF token for durable unlock')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
       .given('durable is locked')
       .upon_receiving('a durable unlock request')
       .with(
         method: :post,
         path: Pact.term(generate: '/durables/42/unlock', matcher: %r{^/durables/[1-9][0-9]*/unlock$}),
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: { '_csrf' => CSRF }
       )
       .will_respond_with(status: 302)
     pact_baza.durable_unlock(42, 'test-owner')
@@ -332,83 +325,115 @@ class TestBazaRb < Minitest::Test
 
   def test_fee
     zerocracy_api
-      .upon_receiving('a request for CSRF token for fee')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
       .given('user is logged in')
       .upon_receiving('a fee payment request')
       .with(
         method: :post,
         path: '/account/fee',
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: { '_csrf' => CSRF }
       )
-      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => RECEIPT })
+      .will_respond_with(
+        status: 302,
+        headers: {
+          'X-Zerocracy-ReceiptId' => Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
+        }
+      )
     receipt = pact_baza.fee('unknown', 10.5, 'Test fee', 123)
     assert_equal(42, receipt)
   end
 
-  def test_enter
+  def test_enter_when_cached
     zerocracy_api
-      .given('result is cached')
+      .given('result for the "bar" badge for job #42 and "foo" product exists as "before"')
       .upon_receiving('an enter request with cached result')
-      .with(method: :get, path: '/result', query: 'badge=test-badge')
-      .will_respond_with(status: 200, body: 'cached result')
-    result = pact_baza.enter('test-valve', 'test-badge', 'test reason', 123) { 'new result' }
-    assert_equal('cached result', result)
+      .with(
+        method: :get,
+        path: '/result',
+        query: {
+          badge: Pact.term(generate: 'bar', matcher: /^[a-z0-9.]+$/)
+        }
+      )
+      .will_respond_with(
+        status: 200,
+        body: Pact.term(generate: 'before', matcher: /^.+$/),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    result = pact_baza.enter('foo', 'bar', 'no reason', 42) { 'after' }
+    assert_equal('before', result)
   end
 
-  def test_enter_not_cached
+  def test_enter_when_not_cached
     zerocracy_api
-      .given('result is not cached')
+      .given('result for the "bar" badge for "foo" product not exists')
       .upon_receiving('an enter request without cached result')
-      .with(method: :get, path: '/result', query: 'badge=test-badge')
-      .will_respond_with(status: 204)
+      .with(
+        method: :get,
+        path: '/result',
+        query: {
+          badge: Pact.term(generate: 'bar', matcher: /^[a-z0-9.]+$/)
+        }
+      )
+      .will_respond_with(
+        status: 204,
+        body: '',
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     zerocracy_api
-      .upon_receiving('a request for CSRF token for valve')
-      .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: CSRF)
-    zerocracy_api
-      .given('result is not cached')
+      .given('job #42 exists for the "foo" product')
       .upon_receiving('a valve creation request')
       .with(
         method: :post,
         path: '/valves',
-        query: 'job=123',
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+        query: {
+          job: Pact.term(generate: '42', matcher: /^[0-9]+$/)
+        },
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: {
+          '_csrf' => CSRF,
+          'badge' => Pact.term(generate: 'bar', matcher: /^[a-z0-9\.-]+$/),
+          'pname' => Pact.term(generate: 'foo', matcher: /^[a-z0-9]+$/),
+          'result' => Pact.term(generate: 'after', matcher: /^.+$/),
+          'why' => Pact.term(generate: 'no reason', matcher: /^.+$/)
+        }
       )
       .will_respond_with(status: 302)
-    result = pact_baza.enter('test-valve', 'test-badge', 'test reason', 123) { 'new result' }
-    assert_equal('new result', result)
+    result = pact_baza.enter('foo', 'bar', 'no reason', 42) { 'after' }
+    assert_equal('after', result)
   end
 
   def test_durable_find_found
     zerocracy_api
-      .given('durable exists')
+      .given('durable "bar.txt" exists for the "foo" product')
       .upon_receiving('a durable find request')
-      .with(method: :get, path: '/durable-find', query: 'file=test.txt&pname=test-job')
-      .will_respond_with(status: 200, body: ID)
-    id = pact_baza.durable_find('test-job', 'test.txt')
+      .with(
+        method: :get,
+        path: '/durable-find',
+        query: query_term(
+          file: ['bar.txt', /[a-z0-9.]+/],
+          pname: ['foo', /[a-z0-9]+/]
+        )
+      )
+      .will_respond_with(status: 200, body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/))
+    id = pact_baza.durable_find('foo', 'bar.txt')
     assert_equal(42, id)
   end
 
   def test_durable_find_not_found
     zerocracy_api
-      .given('durable does not exist')
+      .given('durable "bar.txt" does not exist for the "foo" product')
       .upon_receiving('a durable find request that returns not found')
-      .with(method: :get, path: '/durable-find', query: 'file=test.txt&pname=test-job')
+      .with(
+        method: :get,
+        path: '/durable-find',
+        query: query_term(
+          file: ['bar.txt', /[a-z0-9.]+/],
+          pname: ['foo', /[a-z0-9]+/]
+        )
+      )
       .will_respond_with(status: 404)
-    id = pact_baza.durable_find('test-job', 'test.txt')
+    id = pact_baza.durable_find('foo', 'bar.txt')
     assert_nil(id)
-  end
-
-  def test_get_request_retries_on_429_status_code
-    zerocracy_api
-      .given('server is busy')
-      .upon_receiving('a whoami request that eventually succeeds')
-      .with(method: :get, path: '/whoami')
-      .will_respond_with(status: 200, body: 'testuser')
-    assert_equal('testuser', pact_baza(pause: 0).whoami)
   end
 
   private

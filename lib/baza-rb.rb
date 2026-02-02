@@ -314,7 +314,6 @@ class BazaRb
         home.append('durable-place'),
         {
           'pname' => pname,
-          'jname' => pname,
           'file' => File.basename(file),
           'zip' => File.open(file, 'rb')
         }
@@ -411,7 +410,7 @@ class BazaRb
     raise 'The "file" may not be empty' if file.empty?
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('durable-find').add(pname:, file:), [200, 404])
+      ret = get(home.append('durable-find').add(file:, pname:), [200, 404])
       if ret.code == 200
         id = ret.body.to_i
         throw :"Found durable ##{id} for job \"#{pname}\" file \"#{file}\" at #{@host}"
@@ -550,11 +549,10 @@ class BazaRb
         post(
           uri,
           {
-            'name' => pname,
-            'pname' => pname,
             'badge' => badge,
-            'why' => why,
-            'result' => r.to_s
+            'pname' => pname,
+            'result' => r.to_s,
+            'why' => why
           }
         )
         r
@@ -806,7 +804,7 @@ class BazaRb
         retry_if_server_failed do
           Typhoeus::Request.post(
             uri.to_s,
-            body: params.merge('_csrf' => csrf),
+            body: params.merge('_csrf' => csrf).sort.to_h,
             headers:,
             connecttimeout: @timeout,
             timeout: @timeout
