@@ -2,9 +2,6 @@
   "consumer": {
     "name": "BazaRb"
   },
-  "provider": {
-    "name": "Zerocracy"
-  },
   "interactions": [
     {
       "description": "a recent job check",
@@ -14,10 +11,9 @@
         "path": "/recent/simple.txt"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "42"
+        "body": "42",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -28,10 +24,9 @@
         "path": "/csrf"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "token"
+        "body": "token",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -42,9 +37,8 @@
         "path": "/lock/name"
       },
       "response": {
-        "status": 302,
-        "headers": {
-        }
+        "headers": {},
+        "status": 302
       }
     },
     {
@@ -55,11 +49,11 @@
         "path": "/durables/42"
       },
       "response": {
-        "status": 206,
+        "body": "",
         "headers": {
           "Content-Range": "bytes 0-0/0"
         },
-        "body": ""
+        "status": 206
       }
     },
     {
@@ -70,10 +64,9 @@
         "path": "/durables/42"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "loaded content"
+        "body": "loaded content",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -84,10 +77,9 @@
         "path": "/whoami"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "testuser"
+        "body": "testuser",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -99,9 +91,8 @@
         "query": "badge=test-badge"
       },
       "response": {
-        "status": 204,
-        "headers": {
-        }
+        "headers": {},
+        "status": 204
       }
     },
     {
@@ -112,10 +103,9 @@
         "path": "/csrf"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "csrf-token"
+        "body": "csrf-token",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -127,9 +117,8 @@
         "query": "job=123"
       },
       "response": {
-        "status": 302,
-        "headers": {
-        }
+        "headers": {},
+        "status": 302
       }
     },
     {
@@ -140,10 +129,9 @@
         "path": "/stdout/42.txt"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "hello!"
+        "body": "hello!",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -154,10 +142,9 @@
         "path": "/push/simple"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "42"
+        "body": "42",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -168,10 +155,9 @@
         "path": "/exists/simple"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "yes"
+        "body": "yes",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -182,10 +168,9 @@
         "path": "/csrf"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "token"
+        "body": "token",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -196,9 +181,8 @@
         "path": "/durables/42/lock"
       },
       "response": {
-        "status": 302,
-        "headers": {
-        }
+        "headers": {},
+        "status": 302
       }
     },
     {
@@ -210,10 +194,9 @@
         "query": "file=test.txt&jname=test-job&pname=test-job"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "42"
+        "body": "42",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -225,10 +208,9 @@
         "query": "badge=test-badge"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "cached result"
+        "body": "cached result",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -239,10 +221,9 @@
         "path": "/csrf"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "csrf-token"
+        "body": "csrf-token",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -253,10 +234,10 @@
         "path": "/account/fee"
       },
       "response": {
-        "status": 302,
         "headers": {
           "X-Zerocracy-ReceiptId": "456"
-        }
+        },
+        "status": 302
       }
     },
     {
@@ -267,10 +248,9 @@
         "path": "/csrf"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "token"
+        "body": "token",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -281,9 +261,8 @@
         "path": "/lock/name"
       },
       "response": {
-        "status": 409,
-        "headers": {
-        }
+        "headers": {},
+        "status": 409
       }
     },
     {
@@ -294,9 +273,8 @@
         "path": "/durables/42"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        }
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -308,9 +286,8 @@
         "query": "file=test.txt&jname=test-job&pname=test-job"
       },
       "response": {
-        "status": 404,
-        "headers": {
-        }
+        "headers": {},
+        "status": 404
       }
     },
     {
@@ -321,10 +298,9 @@
         "path": "/jobs/42/verified.txt"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "done"
+        "body": "done",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -335,10 +311,9 @@
         "path": "/whoami"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "jeff"
+        "body": "jeff",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -349,10 +324,9 @@
         "path": "/csrf"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "token"
+        "body": "token",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -363,9 +337,8 @@
         "path": "/durables/42/unlock"
       },
       "response": {
-        "status": 302,
-        "headers": {
-        }
+        "headers": {},
+        "status": 302
       }
     },
     {
@@ -376,10 +349,9 @@
         "path": "/csrf"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "token"
+        "body": "token",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -390,10 +362,10 @@
         "path": "/account/transfer"
       },
       "response": {
-        "status": 302,
         "headers": {
           "X-Zerocracy-ReceiptId": "42"
-        }
+        },
+        "status": 302
       }
     },
     {
@@ -404,10 +376,9 @@
         "path": "/csrf"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "token"
+        "body": "token",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -418,10 +389,10 @@
         "path": "/account/transfer"
       },
       "response": {
-        "status": 302,
         "headers": {
           "X-Zerocracy-ReceiptId": "42"
-        }
+        },
+        "status": 302
       }
     },
     {
@@ -432,10 +403,9 @@
         "path": "/account/balance"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "42.33"
+        "body": "42.33",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -446,10 +416,9 @@
         "path": "/csrf"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "token"
+        "body": "token",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -460,9 +429,8 @@
         "path": "/unlock/foo"
       },
       "response": {
-        "status": 302,
-        "headers": {
-        }
+        "headers": {},
+        "status": 302
       }
     },
     {
@@ -473,10 +441,9 @@
         "path": "/pull/333.fb"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "hello, world!"
+        "body": "hello, world!",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -488,9 +455,8 @@
         "query": "owner=me"
       },
       "response": {
-        "status": 204,
-        "headers": {
-        }
+        "headers": {},
+        "status": 204
       }
     },
     {
@@ -501,10 +467,9 @@
         "path": "/exit/42.txt"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "0"
+        "body": "0",
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -516,9 +481,8 @@
         "query": "id=42"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        }
+        "headers": {},
+        "status": 200
       }
     },
     {
@@ -529,10 +493,9 @@
         "path": "/finished/42"
       },
       "response": {
-        "status": 200,
-        "headers": {
-        },
-        "body": "yes"
+        "body": "yes",
+        "headers": {},
+        "status": 200
       }
     }
   ],
@@ -540,5 +503,8 @@
     "pactSpecification": {
       "version": "2.0.0"
     }
+  },
+  "provider": {
+    "name": "Zerocracy"
   }
 }
