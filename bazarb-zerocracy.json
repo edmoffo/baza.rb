@@ -7,15 +7,15 @@
   },
   "interactions": [
     {
-      "description": "a stdout request",
+      "description": "a recent job check",
       "providerState": "job #42 exists",
       "request": {
         "method": "get",
-        "path": "/stdout/42.txt",
+        "path": "/recent/foo.txt",
         "matchingRules": {
           "$.path": {
             "match": "regex",
-            "regex": "^\\/stdout\\/[1-9][0-9]*\\.txt$"
+            "regex": "\\/recent\\/[a-z0-9]+\\.txt"
           }
         }
       },
@@ -24,7 +24,13 @@
         "headers": {
           "Content-Type": "text/plain"
         },
-        "body": "hello, друг!"
+        "body": "42",
+        "matchingRules": {
+          "$.body": {
+            "match": "regex",
+            "regex": "^[1-9][0-9]*$"
+          }
+        }
       }
     }
   ],

@@ -184,30 +184,51 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  def test_simple_recent_check
+  def test_finds_recent_job
     zerocracy_api
-      .given('job exists')
+      .given('job #42 exists')
       .upon_receiving('a recent job check')
-      .with(method: :get, path: Pact.term(generate: '/recent/simple.txt', matcher: %r{/recent/[a-z0-9]+\.txt}))
-      .will_respond_with(status: 200, body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/))
-    assert_equal(42, pact_baza.recent('simple'))
+      .with(
+        method: :get,
+        path: Pact.term(generate: '/recent/foo.txt', matcher: %r{/recent/[a-z0-9]+\.txt})
+      )
+      .will_respond_with(
+        status: 200,
+        body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    assert_equal(42, pact_baza.recent('foo'))
   end
 
-  def test_simple_exists_check
+  def test_checks_product_existence
     zerocracy_api
-      .given('product exists')
+      .given('product "foo" exists')
       .upon_receiving('an exists check')
-      .with(method: :get, path: '/exists/simple')
-      .will_respond_with(status: 200, body: 'yes')
-    assert(pact_baza.name_exists?('simple'))
+      .with(
+        method: :get,
+        path: Pact.term(generate: '/exists/foo', matcher: %r{^/exists/[a-z0-9]+$})
+      )
+      .will_respond_with(
+        status: 200,
+        body: 'yes',
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    assert(pact_baza.name_exists?('foo'))
   end
 
-  def test_exit_code_check
+  def test_checks_job_exit_code
     zerocracy_api
-      .given('job exists')
+      .given('job #42 exists')
       .upon_receiving('an exit code request')
-      .with(method: :get, path: Pact.term(generate: '/exit/42.txt', matcher: %r{^/exit/[1-9][0-9]*\.txt$}))
-      .will_respond_with(status: 200, body: '0')
+      .with(
+        method: :get,
+        path: Pact.term(generate: '/exit/42.txt', matcher: %r{^/exit/[1-9][0-9]*\.txt$})
+      )
+      .will_respond_with(
+        status: 200,
+        body: '0',
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     assert_predicate(pact_baza.exit_code(42), :zero?)
   end
 
