@@ -20,6 +20,12 @@ class TestBazaRb < Minitest::Test
 
   HOOKS = Pact::Consumer::SpecHooks.new
 
+  # CSRF token matcher - accepts any non-empty string.
+  CSRF = Pact.term(generate: 'csrf-token-example', matcher: /^.+$/)
+
+  # Receipt ID matcher - accepts any positive integer.
+  RECEIPT = Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
+
   def self.run_one_method(klass, method, reporter)
     HOOKS.before_all if @pact_started.nil?
     @pact_started = true
@@ -47,12 +53,12 @@ class TestBazaRb < Minitest::Test
       .given('user exists')
       .upon_receiving('a request for CSRF token')
       .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: 'token')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('user exists')
       .upon_receiving('a transfer payment request')
       .with(method: :post, path: '/account/transfer')
-      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => '42' })
+      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => RECEIPT })
     id = pact_baza.transfer('jeff', 42.50, 'for fun')
     assert_equal(42, id)
   end
@@ -62,12 +68,12 @@ class TestBazaRb < Minitest::Test
       .given('user exists')
       .upon_receiving('a request for CSRF token for job transfer')
       .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: 'token')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('user exists')
       .upon_receiving('a transfer payment request with job')
       .with(method: :post, path: '/account/transfer')
-      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => '42' })
+      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => RECEIPT })
     id = pact_baza.transfer('jeff', 42.50, 'for fun', job: 555)
     assert_equal(42, id)
   end
@@ -113,7 +119,7 @@ class TestBazaRb < Minitest::Test
       .given('job exists')
       .upon_receiving('a request for CSRF token for unlock')
       .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: 'token')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('job exists')
       .upon_receiving('an unlock request')
@@ -205,7 +211,7 @@ class TestBazaRb < Minitest::Test
       .given('product exists')
       .upon_receiving('a request for CSRF token for lock')
       .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: 'token')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('product exists')
       .upon_receiving('a lock request')
@@ -219,7 +225,7 @@ class TestBazaRb < Minitest::Test
       .given('product is locked')
       .upon_receiving('a request for CSRF token for failed lock')
       .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: 'token')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('product is locked')
       .upon_receiving('a lock request that fails')
@@ -272,7 +278,7 @@ class TestBazaRb < Minitest::Test
       .given('durable exists')
       .upon_receiving('a request for CSRF token for durable lock')
       .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: 'token')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('durable exists')
       .upon_receiving('a durable lock request')
@@ -286,7 +292,7 @@ class TestBazaRb < Minitest::Test
       .given('durable is locked')
       .upon_receiving('a request for CSRF token for durable unlock')
       .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: 'token')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('durable is locked')
       .upon_receiving('a durable unlock request')
@@ -300,14 +306,14 @@ class TestBazaRb < Minitest::Test
       .given('user exists')
       .upon_receiving('a request for CSRF token for fee')
       .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: 'csrf-token')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('user exists')
       .upon_receiving('a fee payment request')
       .with(method: :post, path: '/account/fee')
-      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => '456' })
+      .will_respond_with(status: 302, headers: { 'X-Zerocracy-ReceiptId' => RECEIPT })
     receipt = pact_baza.fee('unknown', 10.5, 'Test fee', 123)
-    assert_equal(456, receipt)
+    assert_equal(42, receipt)
   end
 
   def test_enter
@@ -330,7 +336,7 @@ class TestBazaRb < Minitest::Test
       .given('result is not cached')
       .upon_receiving('a request for CSRF token for valve')
       .with(method: :get, path: '/csrf')
-      .will_respond_with(status: 200, body: 'csrf-token')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('result is not cached')
       .upon_receiving('a valve creation request')
