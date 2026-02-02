@@ -48,14 +48,11 @@ class TestBazaRb < Minitest::Test
     assert(BazaRb::VERSION)
   end
 
-  def test_requests_csrf
+  def test_transfers_payment
     zerocracy_api
       .upon_receiving('a request for CSRF token')
       .with(method: :get, path: '/csrf')
       .will_respond_with(status: 200, body: CSRF)
-  end
-
-  def test_transfer_payment
     zerocracy_api
       .given('user is logged in')
       .upon_receiving('a transfer payment request')
@@ -63,7 +60,12 @@ class TestBazaRb < Minitest::Test
         method: :post,
         path: '/account/transfer',
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: { '_csrf' => CSRF }
+        body: {
+          '_csrf' => CSRF,
+          'human' => Pact.term(generate: 'jeff', matcher: /^[a-z0-9-]+$/),
+          'amount' => Pact.term(generate: '42.50', matcher: /^[0-9]+\.[0-9]+$/),
+          'summary' => Pact.term(generate: 'for fun', matcher: /^.+$/)
+        }
       )
       .will_respond_with(
         status: 302,
@@ -75,7 +77,11 @@ class TestBazaRb < Minitest::Test
     assert_equal(42, id)
   end
 
-  def test_transfer_payment_with_job
+  def test_transfers_payment_with_job
+    zerocracy_api
+      .upon_receiving('a request for CSRF token')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('user is logged in')
       .upon_receiving('a transfer payment request with job')
@@ -83,7 +89,13 @@ class TestBazaRb < Minitest::Test
         method: :post,
         path: '/account/transfer',
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: { '_csrf' => CSRF }
+        body: {
+          '_csrf' => CSRF,
+          'job' => Pact.term(generate: '555', matcher: /^[0-9]+$/),
+          'human' => Pact.term(generate: 'jeff', matcher: /^[a-z0-9-]+$/),
+          'amount' => Pact.term(generate: '42.50', matcher: /^[0-9]+\.[0-9]+$/),
+          'summary' => Pact.term(generate: 'for fun', matcher: /^.+$/)
+        }
       )
       .will_respond_with(
         status: 302,
@@ -100,7 +112,11 @@ class TestBazaRb < Minitest::Test
       .given('user is logged in')
       .upon_receiving('a whoami request')
       .with(method: :get, path: '/whoami')
-      .will_respond_with(status: 200, body: Pact.term(generate: 'jeff', matcher: /^[a-z0-9-]+$/))
+      .will_respond_with(
+        status: 200,
+        body: Pact.term(generate: 'jeff', matcher: /^[a-z0-9-]+$/),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     assert_equal('jeff', pact_baza.whoami)
   end
 
@@ -109,16 +125,27 @@ class TestBazaRb < Minitest::Test
       .given('user is logged in')
       .upon_receiving('a balance request')
       .with(method: :get, path: '/account/balance')
-      .will_respond_with(status: 200, body: Pact.term(generate: '42.33', matcher: %r{^[0-9]+\.[0-9]+$}))
+      .will_respond_with(
+        status: 200,
+        body: Pact.term(generate: '42.33', matcher: %r{^[0-9]+\.[0-9]+$}),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     assert_in_delta(42.33, pact_baza.balance)
   end
 
   def test_checks_whether_job_is_finished
     zerocracy_api
-      .given('job 42 exists')
+      .given('job #42 exists')
       .upon_receiving('a finished check request')
-      .with(method: :get, path: Pact.term(generate: '/finished/42', matcher: %r{^/finished/[1-9][0-9]*$}))
-      .will_respond_with(status: 200, body: Pact.term(generate: 'yes', matcher: /^yes|no$/))
+      .with(
+        method: :get,
+        path: Pact.term(generate: '/finished/42', matcher: %r{^/finished/[1-9][0-9]*$})
+      )
+      .will_respond_with(
+        status: 200,
+        body: Pact.term(generate: 'yes', matcher: /^yes|no$/),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     assert(pact_baza.finished?(42))
   end
 
@@ -133,11 +160,19 @@ class TestBazaRb < Minitest::Test
           matcher: %r{^/jobs/[1-9][0-9]*/verified\.txt$}
         )
       )
-      .will_respond_with(status: 200, body: 'done')
+      .will_respond_with(
+        status: 200,
+        body: 'done',
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     assert(pact_baza.verified(42))
   end
 
   def test_unlocks_job_by_name
+    zerocracy_api
+      .upon_receiving('a request for CSRF token')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('job exists')
       .upon_receiving('an unlock request')
@@ -145,26 +180,41 @@ class TestBazaRb < Minitest::Test
         method: :post,
         path: Pact.term(generate: '/unlock/foo', matcher: %r{^/unlock/.+$}),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: { '_csrf' => CSRF, 'owner' => Pact.term(generate: 'the-owner', matcher: /^.+$/) }
+        body: {
+          _csrf: CSRF,
+          owner: Pact.term(generate: 'the-owner', matcher: /^.+$/)
+        }
       )
       .will_respond_with(status: 302)
     assert(pact_baza.unlock('foo', 'the-owner'))
   end
 
-  def test_simple_push
+  def test_pushes_to_create_job
     zerocracy_api
-      .given('product exists')
+      .given('product "foo" exists')
       .upon_receiving('a push request')
-      .with(method: :put, path: Pact.term(generate: '/push/simple', matcher: %r{/push/[a-z0-9]+}))
-      .will_respond_with(status: 200, body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/))
-    pact_baza.push('simple', 'hello, world!', [])
+      .with(
+        method: :put,
+        path: Pact.term(generate: '/push/foo', matcher: %r{/push/[a-z0-9]+})
+      )
+      .will_respond_with(
+        status: 200,
+        body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
+      )
+    pact_baza.push('foo', 'hello, world!', [])
   end
 
-  def test_simple_pop_with_no_job_found
+  def test_pops_no_jobs
     zerocracy_api
       .given('queue is empty')
       .upon_receiving('a pop request with no job')
-      .with(method: :get, path: '/pop', query: Pact.term(generate: 'owner=me', matcher: %r{^owner=.+$}))
+      .with(
+        method: :get,
+        path: '/pop',
+        query: {
+          owner: Pact.term(generate: 'me', matcher: %r{^.+$})
+        }
+      )
       .will_respond_with(status: 204)
     Tempfile.open do |zip|
       refute(pact_baza.pop('me', zip.path))
@@ -172,11 +222,17 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  def test_simple_finish
+  def test_finishes_jobs
     zerocracy_api
-      .given('job exists')
+      .given('job #42 exists')
       .upon_receiving('a finish request')
-      .with(method: :put, path: '/finish', query: Pact.term(generate: 'id=42', matcher: /^id=[1-9][0-9]*$/))
+      .with(
+        method: :put,
+        path: '/finish',
+        query: {
+          id: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
+        }
+      )
       .will_respond_with(status: 200)
     Tempfile.open do |zip|
       File.binwrite(zip.path, 'test data')
@@ -260,10 +316,7 @@ class TestBazaRb < Minitest::Test
         method: :get,
         path: Pact.term(generate: '/pull/42.fb', matcher: %r{^/pull/[1-9][0-9]*\.fb$})
       )
-      .will_respond_with(
-        status: 200,
-        body: Pact.term(generate: bin)
-      )
+      .will_respond_with(status: 200)
     assert(pact_baza.pull(42))
   end
 
@@ -494,10 +547,10 @@ class TestBazaRb < Minitest::Test
       .with(
         method: :get,
         path: '/durable-find',
-        query: query_term(
-          file: ['bar.txt', /[a-z0-9.]+/],
-          pname: ['foo', /[a-z0-9]+/]
-        )
+        query: {
+          file: Pact.term(generate: 'bar.txt', matcher: /[a-z0-9.]+/),
+          pname: Pact.term(generate: 'foo', matcher: /^[a-z0-9]+$/)
+        }
       )
       .will_respond_with(status: 200, body: Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/))
     id = pact_baza.durable_find('foo', 'bar.txt')
@@ -511,10 +564,10 @@ class TestBazaRb < Minitest::Test
       .with(
         method: :get,
         path: '/durable-find',
-        query: query_term(
-          file: ['bar.txt', /[a-z0-9.]+/],
-          pname: ['foo', /[a-z0-9]+/]
-        )
+        query: {
+          file: Pact.term(generate: 'bar.txt', matcher: /[a-z0-9.]+/),
+          pname: Pact.term(generate: 'foo', matcher: /^[a-z0-9]+$/)
+        }
       )
       .will_respond_with(status: 404)
     id = pact_baza.durable_find('foo', 'bar.txt')
