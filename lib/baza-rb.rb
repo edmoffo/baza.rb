@@ -472,10 +472,10 @@ class BazaRb
       ret = post(
         home.append('account').append('fee'),
         {
-          'tab' => tab,
           'amount' => format('%0.6f', amount),
+          'job' => job.to_s,
           'summary' => summary,
-          'job' => job.to_s
+          'tab' => tab
         }
       )
       id = ret.headers['X-Zerocracy-ReceiptId'].to_i
@@ -706,7 +706,7 @@ class BazaRb
       if ret.code >= 500 && attempt < @retries
         attempt += 1
         seconds = @pause * (2**attempt)
-        @loog.info("Server seems to be in trouble, will sleep for #{seconds} (attempt no.#{attempt})...")
+        @loog.info("Server seems to be in trouble (#{ret.code}), sleep #{seconds}s (attempt no.#{attempt})...")
         sleep(seconds)
         next
       end

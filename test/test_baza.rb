@@ -323,7 +323,11 @@ class TestBazaRb < Minitest::Test
     pact_baza.durable_unlock(42, 'test-owner')
   end
 
-  def test_fee
+  def test_pays_fee
+    zerocracy_api
+      .upon_receiving('a request for CSRF token')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: CSRF)
     zerocracy_api
       .given('user is logged in')
       .upon_receiving('a fee payment request')
@@ -331,7 +335,13 @@ class TestBazaRb < Minitest::Test
         method: :post,
         path: '/account/fee',
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: { '_csrf' => CSRF }
+        body: {
+          '_csrf' => CSRF,
+          'amount' => Pact.term(generate: '42.77', matcher: %r{^[0-9]+\.[0-9]+$}),
+          'job' => Pact.term(generate: '42', matcher: %r{^[0-9]+$}),
+          'summary' => Pact.term(generate: 'the summary', matcher: %r{^.+$}),
+          'tab' => Pact.term(generate: 'unknown', matcher: %r{^[a-z]+$})
+        }
       )
       .will_respond_with(
         status: 302,
@@ -339,7 +349,7 @@ class TestBazaRb < Minitest::Test
           'X-Zerocracy-ReceiptId' => Pact.term(generate: '42', matcher: /^[1-9][0-9]*$/)
         }
       )
-    receipt = pact_baza.fee('unknown', 10.5, 'Test fee', 123)
+    receipt = pact_baza.fee('unknown', 42.77, 'the summary', 42)
     assert_equal(42, receipt)
   end
 
@@ -380,7 +390,11 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     zerocracy_api
-      .given('job #42 exists for the "foo" product')
+      .upon_receiving('a request for CSRF token')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: CSRF)
+    zerocracy_api
+      .given('job #42 exists for the "foo" product and valve "bar" not exists')
       .upon_receiving('a valve creation request')
       .with(
         method: :post,
@@ -444,7 +458,7 @@ class TestBazaRb < Minitest::Test
       zerocracy_api.mock_service_base_url.split(':').last.to_i,
       '000',
       ssl: false,
-      loog: Loog::NULL,
+      loog: Loog::VERBOSE,
       compress: false,
       pause:
     )

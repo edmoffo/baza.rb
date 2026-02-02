@@ -7,25 +7,68 @@
   },
   "interactions": [
     {
-      "description": "an enter request without cached result",
-      "providerState": "result for the \"bar\" badge for \"foo\" product not exists",
+      "description": "a request for CSRF token",
       "request": {
         "method": "get",
-        "path": "/result",
-        "query": "badge=bar",
+        "path": "/csrf"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+        },
+        "body": "csrf-token-example",
         "matchingRules": {
-          "$.query.badge[0]": {
+          "$.body": {
             "match": "regex",
-            "regex": "^[a-z0-9.]+$"
+            "regex": "^.+$"
+          }
+        }
+      }
+    },
+    {
+      "description": "a fee payment request",
+      "providerState": "user is logged in",
+      "request": {
+        "method": "post",
+        "path": "/account/fee",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        "body": "_csrf=csrf-token-example&amount=42.77&job=42&summary=the+summary&tab=unknown",
+        "matchingRules": {
+          "$.body._csrf": {
+            "match": "regex",
+            "regex": "^.+$"
+          },
+          "$.body.amount": {
+            "match": "regex",
+            "regex": "^[0-9]+\\.[0-9]+$"
+          },
+          "$.body.job": {
+            "match": "regex",
+            "regex": "^[0-9]+$"
+          },
+          "$.body.summary": {
+            "match": "regex",
+            "regex": "^.+$"
+          },
+          "$.body.tab": {
+            "match": "regex",
+            "regex": "^[a-z]+$"
           }
         }
       },
       "response": {
-        "status": 204,
+        "status": 302,
         "headers": {
-          "Content-Type": "text/plain"
+          "X-Zerocracy-ReceiptId": "42"
         },
-        "body": ""
+        "matchingRules": {
+          "$.headers.X-Zerocracy-ReceiptId": {
+            "match": "regex",
+            "regex": "^[1-9][0-9]*$"
+          }
+        }
       }
     }
   ],
