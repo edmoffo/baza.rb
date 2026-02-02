@@ -26,48 +26,33 @@
       }
     },
     {
-      "description": "a fee payment request",
-      "providerState": "user is logged in",
+      "description": "a lock request",
+      "providerState": "product \"foo\" exists",
       "request": {
         "method": "post",
-        "path": "/account/fee",
+        "path": "/lock/foo",
         "headers": {
           "Content-Type": "application/x-www-form-urlencoded"
         },
-        "body": "_csrf=csrf-token-example&amount=42.77&job=42&summary=the+summary&tab=unknown",
+        "body": "_csrf=csrf-token-example&owner=the-owner",
         "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "^\\/lock\\/[a-z0-9]+$"
+          },
           "$.body._csrf": {
             "match": "regex",
             "regex": "^.+$"
           },
-          "$.body.amount": {
-            "match": "regex",
-            "regex": "^[0-9]+\\.[0-9]+$"
-          },
-          "$.body.job": {
-            "match": "regex",
-            "regex": "^[0-9]+$"
-          },
-          "$.body.summary": {
+          "$.body.owner": {
             "match": "regex",
             "regex": "^.+$"
-          },
-          "$.body.tab": {
-            "match": "regex",
-            "regex": "^[a-z]+$"
           }
         }
       },
       "response": {
         "status": 302,
         "headers": {
-          "X-Zerocracy-ReceiptId": "42"
-        },
-        "matchingRules": {
-          "$.headers.X-Zerocracy-ReceiptId": {
-            "match": "regex",
-            "regex": "^[1-9][0-9]*$"
-          }
         }
       }
     }

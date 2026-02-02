@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2026 Zerocracy
 # SPDX-License-Identifier: MIT
 
+require 'factbase'
 require 'loog'
 require 'securerandom'
 require 'pact/consumer'
@@ -219,70 +220,97 @@ class TestBazaRb < Minitest::Test
     refute_empty(pact_baza.stdout(42))
   end
 
-  def test_simple_pull
+  def test_pulls_factbase_file
+    fb = Factbase.new
+    fb.insert.then { |f| f.foo = 42 }
+    bin = fb.export
     zerocracy_api
-      .given('job exists')
+      .given('job #42 exists')
       .upon_receiving('a pull request')
-      .with(method: :get, path: Pact.term(generate: '/pull/42.fb', matcher: %r{^/pull/[1-9][0-9]*\.fb$}))
-      .will_respond_with(status: 200, body: 'hello, world!')
-    assert(pact_baza.pull(42).start_with?('hello'))
+      .with(
+        method: :get,
+        path: Pact.term(generate: '/pull/42.fb', matcher: %r{^/pull/[1-9][0-9]*\.fb$})
+      )
+      .will_respond_with(
+        status: 200,
+        body: Pact.term(generate: bin)
+      )
+    assert(pact_baza.pull(42))
   end
 
-  def test_simple_lock_success
+  def test_locks_product
     zerocracy_api
-      .given('product exists')
+      .upon_receiving('a request for CSRF token')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: CSRF)
+    zerocracy_api
+      .given('product "foo" exists')
       .upon_receiving('a lock request')
       .with(
         method: :post,
-        path: '/lock/name',
+        path: Pact.term(generate: '/lock/foo', matcher: %r{^/lock/[a-z0-9]+$}),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: { '_csrf' => CSRF }
+        body: {
+          '_csrf' => CSRF,
+          'owner' => Pact.term(generate: 'the-owner', matcher: %r{^.+$})
+        }
       )
       .will_respond_with(status: 302)
-    pact_baza.lock('name', 'owner')
+    pact_baza.lock('foo', 'the-owner')
   end
 
-  def test_simple_lock_failure
+  def test_fails_to_lock
     zerocracy_api
-      .given('product is locked')
+      .upon_receiving('a request for CSRF token')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: CSRF)
+    zerocracy_api
+      .given('product "foo" is locked')
       .upon_receiving('a lock request that fails')
       .with(
         method: :post,
-        path: '/lock/name',
+        path: Pact.term(generate: '/lock/foo', matcher: %r{^/lock/[a-z0-9]+$}),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: { '_csrf' => CSRF }
+        body: {
+          '_csrf' => CSRF,
+          'owner' => Pact.term(generate: 'the-owner', matcher: %r{^.+$})
+        }
       )
       .will_respond_with(status: 409)
-    assert_raises(StandardError) { pact_baza.lock('name', 'owner') }
+    assert_raises(StandardError) { pact_baza.lock('foo', 'the-owner') }
   end
 
-  def test_durable_save
+  def test_saves_durable
+    body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
     zerocracy_api
-      .given('durable exists')
+      .given('durable #42 exists')
       .upon_receiving('a durable save request')
-      .with(method: :put, path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$}))
+      .with(
+        method: :put,
+        path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$})
+      )
       .will_respond_with(status: 200)
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'test.txt')
-      File.write(file, "\x00\x00 hi, dude! \x00\xFF\xFE\x12")
+      File.binwrite(file, body)
       pact_baza.durable_save(42, file)
     end
   end
 
-  def test_durable_load
+  def test_loads_durable
     zerocracy_api
-      .given('durable exists')
+      .given('durable #42 exists')
       .upon_receiving('a durable load request')
       .with(method: :get, path: Pact.term(generate: '/durables/42', matcher: %r{^/durables/[1-9][0-9]*$}))
-      .will_respond_with(status: 200, body: 'loaded content')
+      .will_respond_with(status: 200, body: Pact.term(generate: 'some data', matcher: %r{^.+$}))
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
       pact_baza.durable_load(42, file)
-      assert_equal('loaded content', File.read(file))
+      assert_equal('some data', File.read(file))
     end
   end
 
-  def test_durable_load_empty_content
+  def test_loads_durable_empty_content
     zerocracy_api
       .given('durable is empty')
       .upon_receiving('a durable load request for empty content')
@@ -295,32 +323,46 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  def test_durable_lock
+  def test_locks_durable
     zerocracy_api
-      .given('durable exists')
+      .upon_receiving('a request for CSRF token')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: CSRF)
+    zerocracy_api
+      .given('durable #42 exists')
       .upon_receiving('a durable lock request')
       .with(
         method: :post,
         path: Pact.term(generate: '/durables/42/lock', matcher: %r{^/durables/[1-9][0-9]*/lock$}),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: { '_csrf' => CSRF }
+        body: {
+          '_csrf' => CSRF,
+          'owner' => Pact.term(generate: 'the-owner', matcher: %r{^.+$})
+        }
       )
       .will_respond_with(status: 302)
-    pact_baza.durable_lock(42, 'test-owner')
+    pact_baza.durable_lock(42, 'the-owner')
   end
 
-  def test_durable_unlock
+  def test_unlocks_durable
     zerocracy_api
-      .given('durable is locked')
+      .upon_receiving('a request for CSRF token')
+      .with(method: :get, path: '/csrf')
+      .will_respond_with(status: 200, body: CSRF)
+    zerocracy_api
+      .given('durable #42 is locked')
       .upon_receiving('a durable unlock request')
       .with(
         method: :post,
         path: Pact.term(generate: '/durables/42/unlock', matcher: %r{^/durables/[1-9][0-9]*/unlock$}),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: { '_csrf' => CSRF }
+        body: {
+          '_csrf' => CSRF,
+          'owner' => Pact.term(generate: 'the-owner', matcher: %r{^.+$})
+        }
       )
       .will_respond_with(status: 302)
-    pact_baza.durable_unlock(42, 'test-owner')
+    pact_baza.durable_unlock(42, 'the-owner')
   end
 
   def test_pays_fee
@@ -353,7 +395,7 @@ class TestBazaRb < Minitest::Test
     assert_equal(42, receipt)
   end
 
-  def test_enter_when_cached
+  def test_enters_when_cached
     zerocracy_api
       .given('result for the "bar" badge for job #42 and "foo" product exists as "before"')
       .upon_receiving('an enter request with cached result')
@@ -373,7 +415,7 @@ class TestBazaRb < Minitest::Test
     assert_equal('before', result)
   end
 
-  def test_enter_when_not_cached
+  def test_enters_when_not_cached
     zerocracy_api
       .given('result for the "bar" badge for "foo" product not exists')
       .upon_receiving('an enter request without cached result')
@@ -416,7 +458,7 @@ class TestBazaRb < Minitest::Test
     assert_equal('after', result)
   end
 
-  def test_durable_find_found
+  def test_finds_durable
     zerocracy_api
       .given('durable "bar.txt" exists for the "foo" product')
       .upon_receiving('a durable find request')
@@ -433,7 +475,7 @@ class TestBazaRb < Minitest::Test
     assert_equal(42, id)
   end
 
-  def test_durable_find_not_found
+  def test_doesnt_find_durable
     zerocracy_api
       .given('durable "bar.txt" does not exist for the "foo" product')
       .upon_receiving('a durable find request that returns not found')
