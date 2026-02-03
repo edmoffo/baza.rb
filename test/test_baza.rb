@@ -612,7 +612,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'job' => 42, 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .given('valve exists', { 'badge' => 'bar', 'job' => 42, 'pname' => 'foo', 'result' => 'before' })
       .upon_receiving('an enter request with cached result')
       .with_request(
@@ -656,7 +656,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'job' => 42, 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .given('valve exists', { 'job' => 42, 'pname' => 'foo', 'badge' => 'bar' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a valve creation request')
