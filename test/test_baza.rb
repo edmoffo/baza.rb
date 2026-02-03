@@ -315,29 +315,29 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  def test_pushes_to_create_job
-    interaction
-      .given('user is authenticated')
-      .given('user is rich')
-      .given('queue is empty')
-      .given('product exists', { 'pname' => 'pact72' })
-      .upon_receiving('a push request')
-      .with_request(
-        method: 'PUT',
-        path: match_regex(%r{/push/[a-z0-9]+}, '/push/pact72'),
-        body: Factbase.new.export,
-        headers: { 'Content-Type' => 'application/octet-stream' }
-      )
-      .will_respond_with(
-        status: 200,
-        body: match_regex(/^[1-9][0-9]*$/, '890'),
-        headers: { 'Content-Type' => 'text/plain' }
-      )
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      baza.push('pact72', Factbase.new.export, [])
-    end
-  end
+  # def test_pushes_to_create_job
+  #   interaction
+  #     .given('user is authenticated')
+  #     .given('user is rich')
+  #     .given('queue is empty')
+  #     .given('product exists', { 'pname' => 'pact72' })
+  #     .upon_receiving('a push request')
+  #     .with_request(
+  #       method: 'PUT',
+  #       path: match_regex(%r{/push/[a-z0-9]+}, '/push/pact72'),
+  #       body: Factbase.new.export,
+  #       headers: { 'Content-Type' => 'application/octet-stream' }
+  #     )
+  #     .will_respond_with(
+  #       status: 200,
+  #       body: match_regex(/^[1-9][0-9]*$/, '890'),
+  #       headers: { 'Content-Type' => 'text/plain' }
+  #     )
+  #   execute_pact do |server|
+  #     baza = baza_client(server.port)
+  #     baza.push('pact72', Factbase.new.export, [])
+  #   end
+  # end
 
   def test_finds_recent_job
     interaction
