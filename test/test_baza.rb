@@ -111,8 +111,8 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('user is rich')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact31' })
+      .given('job exists', { 'id' => 42, 'pname' => 'pact31' })
       .upon_receiving('a transfer payment request with job')
       .with_request(
         method: 'POST',
@@ -173,8 +173,8 @@ class TestBazaRb < Minitest::Test
   def test_checks_whether_job_is_finished
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact43' })
+      .given('job exists', { 'id' => 42, 'pname' => 'pact43' })
       .upon_receiving('a finished check request')
       .with_request(
         method: 'GET',
@@ -194,8 +194,8 @@ class TestBazaRb < Minitest::Test
   def test_reads_verification_verdict
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact98' })
+      .given('job exists', { 'id' => 42, 'pname' => 'pact98' })
       .upon_receiving('a verification verdict request')
       .with_request(
         method: 'GET',
@@ -224,13 +224,13 @@ class TestBazaRb < Minitest::Test
       )
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact25' })
+      .given('job exists', { 'id' => 42, 'pname' => 'pact25' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('an unlock request')
       .with_request(
         method: 'POST',
-        path: match_regex(%r{^/unlock/.+$}, '/unlock/foo'),
+        path: match_regex(%r{^/unlock/.+$}, '/unlock/pact25'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => csrf,
@@ -240,7 +240,7 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 302)
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert(baza.unlock('foo', 'the-owner'))
+      assert(baza.unlock('pact25', 'the-owner'))
     end
   end
 
@@ -248,11 +248,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('user is rich')
-      .given('product exists', { 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact72' })
       .upon_receiving('a push request')
       .with_request(
         method: 'PUT',
-        path: match_regex(%r{/push/[a-z0-9]+}, '/push/foo'),
+        path: match_regex(%r{/push/[a-z0-9]+}, '/push/pact72'),
         body: Factbase.new.export,
         headers: { 'Content-Type' => 'application/octet-stream' }
       )
@@ -263,19 +263,19 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      baza.push('foo', Factbase.new.export, [])
+      baza.push('pact72', Factbase.new.export, [])
     end
   end
 
   def test_finds_recent_job
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact61' })
+      .given('job exists', { 'id' => 42, 'pname' => 'pact61' })
       .upon_receiving('a recent job check')
       .with_request(
         method: 'GET',
-        path: match_regex(%r{/recent/[a-z0-9]+\.txt}, '/recent/foo.txt')
+        path: match_regex(%r{/recent/[a-z0-9]+\.txt}, '/recent/pact61.txt')
       )
       .will_respond_with(
         status: 200,
@@ -284,18 +284,18 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert_equal(42, baza.recent('foo'))
+      assert_equal(42, baza.recent('pact61'))
     end
   end
 
   def test_checks_product_existence
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact74' })
       .upon_receiving('an exists check')
       .with_request(
         method: 'GET',
-        path: match_regex(%r{^/exists/[a-z0-9]+$}, '/exists/foo')
+        path: match_regex(%r{^/exists/[a-z0-9]+$}, '/exists/pact74')
       )
       .will_respond_with(
         status: 200,
@@ -304,15 +304,15 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert(baza.name_exists?('foo'))
+      assert(baza.name_exists?('pact74'))
     end
   end
 
   def test_checks_job_exit_code
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact22' })
+      .given('job exists', { 'id' => 43, 'pname' => 'pact22' })
       .upon_receiving('an exit code request')
       .with_request(
         method: 'GET',
@@ -325,7 +325,7 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert_predicate(baza.exit_code(42), :zero?)
+      assert_predicate(baza.exit_code(43), :zero?)
     end
   end
 
@@ -334,11 +334,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('job exists', { 'id' => 17, 'pname' => 'foo' })
       .upon_receiving('a stdout request')
       .with_request(
         method: 'GET',
-        path: match_regex(%r{^/stdout/[1-9][0-9]*\.txt$}, '/stdout/42.txt')
+        path: match_regex(%r{^/stdout/[1-9][0-9]*\.txt$}, '/stdout/17.txt')
       )
       .will_respond_with(
         status: 200,
@@ -347,7 +347,7 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert_equal(body, baza.stdout(42).force_encoding('UTF-8'))
+      assert_equal(body, baza.stdout(17).force_encoding('UTF-8'))
     end
   end
 
@@ -357,17 +357,17 @@ class TestBazaRb < Minitest::Test
     fb.export
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact93' })
+      .given('job exists', { 'id' => 47, 'pname' => 'pact93' })
       .upon_receiving('a pull request')
       .with_request(
         method: 'GET',
-        path: match_regex(%r{^/pull/[1-9][0-9]*\.fb$}, '/pull/42.fb')
+        path: match_regex(%r{^/pull/[1-9][0-9]*\.fb$}, '/pull/47.fb')
       )
       .will_respond_with(status: match_status_code('success'))
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert(baza.pull(42))
+      assert(baza.pull(47))
     end
   end
 
@@ -487,19 +487,19 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
-      .given('durable is empty', { 'id' => 42 })
+      .given('durable exists', { 'id' => 54, 'file' => 'bar.txt', 'pname' => 'foo' })
+      .given('durable is empty', { 'id' => 54 })
       .upon_receiving('a durable load request for empty content')
       .with_request(
         method: 'GET',
-        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42')
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/54')
       )
       .will_respond_with(status: 206, body: '', headers: { 'Content-Range' => 'bytes 0-0/0' })
     execute_pact do |server|
       baza = baza_client(server.port)
       Dir.mktmpdir do |dir|
         file = File.join(dir, 'loaded.txt')
-        baza.durable_load(42, file)
+        baza.durable_load(54, file)
         assert_equal('', File.read(file))
       end
     end
@@ -518,12 +518,12 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact7' })
-      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'pact7' })
+      .given('durable exists', { 'id' => 65, 'file' => 'bar.txt', 'pname' => 'pact7' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable lock request')
       .with_request(
         method: 'POST',
-        path: match_regex(%r{^/durables/[1-9][0-9]*/lock$}, '/durables/42/lock'),
+        path: match_regex(%r{^/durables/[1-9][0-9]*/lock$}, '/durables/65/lock'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => csrf,
@@ -533,7 +533,7 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 302)
     execute_pact do |server|
       baza = baza_client(server.port)
-      baza.durable_lock(42, 'the-owner')
+      baza.durable_lock(65, 'the-owner')
     end
   end
 
@@ -550,13 +550,13 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact8' })
-      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'pact8' })
-      .given('durable is locked', { 'id' => 42, 'owner' => 'another-owner' })
+      .given('durable exists', { 'id' => 52, 'file' => 'bar.txt', 'pname' => 'pact8' })
+      .given('durable is locked', { 'id' => 52, 'owner' => 'another-owner' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable unlock request')
       .with_request(
         method: 'POST',
-        path: match_regex(%r{^/durables/[1-9][0-9]*/unlock$}, '/durables/42/unlock'),
+        path: match_regex(%r{^/durables/[1-9][0-9]*/unlock$}, '/durables/52/unlock'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => csrf,
@@ -566,7 +566,7 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 302)
     execute_pact do |server|
       baza = baza_client(server.port)
-      baza.durable_unlock(42, 'the-owner')
+      baza.durable_unlock(52, 'the-owner')
     end
   end
 
