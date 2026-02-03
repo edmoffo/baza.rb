@@ -14,7 +14,9 @@ release:
   script: |-
     [[ "${tag}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit -1
     bundle exec rake
-    git add BazaRb-Zerocracy.json
+    mv BazaRb-Zerocracy.json pact.json
+    git add pact.json
+    git commit -m "pact JSON added"
     rm -rf *.gem
     sed -i "s/0\.0\.0/${tag}/g" lib/baza-rb/version.rb
     git add lib/baza-rb/version.rb
