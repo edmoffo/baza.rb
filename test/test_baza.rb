@@ -67,7 +67,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(status: 200, body: csrf)
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     interaction
       .given('user is authenticated')
       .given('user is rich')
@@ -99,7 +103,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(status: 200, body: csrf)
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     interaction
       .given('user is authenticated')
       .given('user is rich')
@@ -209,7 +217,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(status: 200, body: csrf)
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
@@ -402,7 +414,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(status: 200, body: csrf)
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
@@ -429,7 +445,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(status: 200, body: csrf)
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
@@ -522,7 +542,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(status: 200, body: csrf)
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
@@ -550,7 +574,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(status: 200, body: csrf)
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
@@ -579,7 +607,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(status: 200, body: csrf)
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     interaction
       .given('user is authenticated')
       .given('user is rich')
@@ -652,7 +684,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .upon_receiving('a request for CSRF token')
       .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(status: 200, body: csrf)
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
