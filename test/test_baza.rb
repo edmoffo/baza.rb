@@ -256,7 +256,8 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 200,
-        body: match_regex(/^[1-9][0-9]*$/, '42')
+        body: match_regex(/^[1-9][0-9]*$/, '42'),
+        headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
       baza = baza_client(server.port)
