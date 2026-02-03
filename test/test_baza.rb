@@ -248,6 +248,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('user is rich')
+      .given('queue is empty')
       .given('product exists', { 'pname' => 'pact72' })
       .upon_receiving('a push request')
       .with_request(
@@ -271,7 +272,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact61' })
-      .given('job exists', { 'id' => 42, 'pname' => 'pact61' })
+      .given('job exists', { 'id' => 124, 'pname' => 'pact61' })
       .upon_receiving('a recent job check')
       .with_request(
         method: 'GET',
@@ -279,12 +280,12 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 200,
-        body: match_regex(/^[1-9][0-9]*$/, '42'),
+        body: match_regex(/^[1-9][0-9]*$/, '124'),
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert_equal(42, baza.recent('pact61'))
+      assert_equal(124, baza.recent('pact61'))
     end
   end
 
@@ -440,13 +441,18 @@ class TestBazaRb < Minitest::Test
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact3' })
       .given('durable exists', { 'id' => 426, 'file' => 'bar.txt', 'pname' => 'pact3' })
-      .given('durable is locked', { 'id' => 426 })
+      .given('durable is locked', { 'id' => 426, 'owner' => 'previous-owner' })
       .upon_receiving('a durable save request')
       .with_request(
         method: 'PUT',
-        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42')
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42'),
+        headers: { 'Content-Type' => 'application/octet-stream' }
       )
-      .will_respond_with(status: 200, body: '')
+      .will_respond_with(
+        status: 200,
+        body: '',
+        headers: { 'Content-Type' => 'text/plain' }
+      )
     execute_pact do |server|
       baza = baza_client(server.port)
       Dir.mktmpdir do |dir|
@@ -494,7 +500,11 @@ class TestBazaRb < Minitest::Test
         method: 'GET',
         path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/54')
       )
-      .will_respond_with(status: 206, body: '', headers: { 'Content-Range' => 'bytes 0-0/0' })
+      .will_respond_with(
+        status: match_status_code('success'),
+        body: '',
+        headers: { 'Content-Range' => match_regex(%r{^bytes [0-9]+-[0-9]+/[0-9]+$}, 'bytes 0-0/0') }
+      )
     execute_pact do |server|
       baza = baza_client(server.port)
       Dir.mktmpdir do |dir|
@@ -584,6 +594,8 @@ class TestBazaRb < Minitest::Test
       .given('user is authenticated')
       .given('user is rich')
       .given('CSRF token exists', { 'token' => 'swordfish' })
+      .given('product exists', { 'pname' => 'pact96' })
+      .given('job exists', { 'id' => 776, 'pname' => 'pact96' })
       .upon_receiving('a fee payment request')
       .with_request(
         method: 'POST',
@@ -592,19 +604,19 @@ class TestBazaRb < Minitest::Test
         body: {
           '_csrf' => csrf,
           'amount' => match_regex(/^[0-9]+\.[0-9]+$/, '42.770000'),
-          'job' => match_regex(/^[0-9]+$/, '42'),
+          'job' => match_regex(/^[0-9]+$/, '776'),
           'summary' => match_regex(/^.+$/, 'the summary'),
           'tab' => match_regex(/^[a-z]+$/, 'unknown')
         }
       )
       .will_respond_with(
         status: 302,
-        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '42') }
+        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '9898') }
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      receipt = baza.fee('unknown', 42.77, 'the summary', 42)
-      assert_equal(42, receipt)
+      receipt = baza.fee('unknown', 42.77, 'the summary', 776)
+      assert_equal(9898, receipt)
     end
   end
 
