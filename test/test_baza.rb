@@ -457,7 +457,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
       .upon_receiving('a durable save request')
       .with_request(
         method: 'PUT',
@@ -478,7 +478,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
       .upon_receiving('a durable load request')
       .with_request(
         method: 'GET',
@@ -499,7 +499,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
       .given('durable is empty', { 'id' => 42 })
       .upon_receiving('a durable load request for empty content')
       .with_request(
@@ -526,7 +526,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable lock request')
       .with_request(
@@ -554,7 +554,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
       .given('durable is locked', { 'id' => 42 })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable unlock request')
