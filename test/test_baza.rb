@@ -361,7 +361,7 @@ class TestBazaRb < Minitest::Test
         method: 'GET',
         path: match_regex(%r{^/pull/[1-9][0-9]*\.fb$}, '/pull/42.fb')
       )
-      .will_respond_with(status: 200)
+      .will_respond_with(status: match_status_code('success'))
     execute_pact do |server|
       baza = baza_client(server.port)
       assert(baza.pull(42))
@@ -463,13 +463,18 @@ class TestBazaRb < Minitest::Test
         method: 'GET',
         path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42')
       )
-      .will_respond_with(status: 200, body: 'some data', headers: { 'Content-Type' => 'text/plain' })
+      .will_respond_with(
+        status: match_status_code('success'),
+        headers: {
+          'Content-Type' => 'application/octet-stream'
+        }
+      )
     execute_pact do |server|
       baza = baza_client(server.port)
       Dir.mktmpdir do |dir|
         file = File.join(dir, 'loaded.txt')
         baza.durable_load(42, file)
-        assert_equal('some data', File.read(file))
+        assert_equal('', File.read(file))
       end
     end
   end

@@ -84,7 +84,13 @@ module Pact
 
         def will_respond_with(status: nil, headers: {}, body: nil)
           part = PactFfi::FfiInteractionPart['INTERACTION_PART_RESPONSE']
-          PactFfi.response_status(@pact_interaction, status)
+          if status.is_a?(Pact::V2::Matchers::Base)
+            basic = status.as_basic
+            basic['value'] ||= 200
+            PactFfi.response_status_v2(@pact_interaction, JSON.dump(basic))
+          else
+            PactFfi.response_status(@pact_interaction, status)
+          end
           InteractionContents.basic(headers).each_pair do |key, val|
             PactFfi.with_header_v2(@pact_interaction, part, key.to_s, 0, format_value(val))
           end
