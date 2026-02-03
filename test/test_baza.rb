@@ -437,6 +437,7 @@ class TestBazaRb < Minitest::Test
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
       .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
+      .given('durable is locked', { 'id' => 42 })
       .upon_receiving('a durable save request')
       .with_request(
         method: 'PUT',
