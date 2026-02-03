@@ -6,7 +6,7 @@
 source 'https://rubygems.org'
 gemspec
 
-gem 'activesupport', '~>7.0', require: false
+gem 'activesupport', '~>8.0', require: false
 gem 'base64', '~>0.3', require: false
 gem 'factbase', '~>0.16', require: false
 gem 'minitest', '~>6.0', require: false
