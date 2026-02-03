@@ -484,31 +484,6 @@ class BazaRb
     id
   end
 
-  # Pop the next available job from the server's queue.
-  #
-  # @param [String] owner Identifier of who is taking the job (any descriptive text)
-  # @param [String] zip The local file path where the job's ZIP archive will be saved
-  # @return [Boolean] TRUE if a job was successfully popped, FALSE if queue is empty
-  # @raise [ServerFailure] If the pop operation fails
-  def pop(owner, zip)
-    success = false
-    elapsed(@loog, level: Logger::INFO) do
-      uri = home.append('pop').add(owner:)
-      ret = get(uri, [204, 302])
-      if ret.code == 204
-        FileUtils.rm_f(zip)
-        throw :"Nothing to pop at #{uri}"
-      end
-      job = ret.headers['X-Zerocracy-JobId']
-      raise 'Job ID is not returned in X-Zerocracy-JobId' if job.nil?
-      raise "Job ID returned in X-Zerocracy-JobId is not valid (#{job.inspect})" unless job.match?(/^[0-9]+$/)
-      download(uri.add(job:), zip)
-      success = true
-      throw :"Popped #{File.size(zip)} bytes in ZIP archive at #{@host}"
-    end
-    success
-  end
-
   # Enter a valve to cache or retrieve a computation result.
   #
   # Valves prevent duplicate computations by caching results. If a result

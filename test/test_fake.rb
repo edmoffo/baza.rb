@@ -100,15 +100,6 @@ class TestFake < Minitest::Test
     assert_equal(42, receipt_id)
   end
 
-  def test_pop
-    baza = BazaRb::Fake.new
-    Dir.mktmpdir do |tmp|
-      f = File.join(tmp, 'test.zip')
-      result = baza.pop('test-owner', f)
-      assert(result)
-    end
-  end
-
   def test_enter
     baza = BazaRb::Fake.new
     result =

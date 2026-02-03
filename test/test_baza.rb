@@ -264,26 +264,6 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  def test_pops_no_jobs
-    interaction
-      .given('user is authenticated')
-      .given('queue is empty')
-      .upon_receiving('a pop request with no job')
-      .with_request(
-        method: 'GET',
-        path: '/pop',
-        query: { 'owner' => match_regex(/^.+$/, 'me') }
-      )
-      .will_respond_with(status: 204)
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      Tempfile.open do |zip|
-        refute(baza.pop('me', zip.path))
-        refute_path_exists(zip.path)
-      end
-    end
-  end
-
   def test_finds_recent_job
     interaction
       .given('user is authenticated')

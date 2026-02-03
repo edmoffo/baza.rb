@@ -219,20 +219,6 @@ class BazaRb::Fake
     42
   end
 
-  # Pop the next available job from the server's queue.
-  #
-  # @param [String] owner Identifier of who is taking the job
-  # @param [String] zip The local file path where the job's ZIP will be saved
-  # @return [Boolean] Always returns TRUE and creates an empty file
-  # rubocop:disable Naming/PredicateMethod
-  def pop(owner, zip)
-    assert_owner(owner)
-    FileUtils.mkdir_p(File.dirname(zip))
-    FileUtils.touch(zip)
-    true
-  end
-  # rubocop:enable Naming/PredicateMethod
-
   # Enter a valve to cache or retrieve a computation result.
   #
   # @param [String] name Name of the job

@@ -50,58 +50,6 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
-  def test_simple_pop_with_ranges
-    WebMock.disable_net_connect!
-    owner = 'owner888'
-    job = 4242
-    stub_request(:get, 'https://example.org/pop')
-      .with(query: { owner: })
-      .to_return(
-        status: 302,
-        headers: { 'X-Zerocracy-JobId' => job },
-        body: ''
-      )
-    stub_request(:get, 'https://example.org/pop')
-      .with(query: { job: })
-      .to_return(
-        status: 206,
-        headers: { 'Content-Range' => 'bytes 0-0/*', 'Content-Length' => 0 },
-        body: ''
-      )
-    bin = nil
-    Tempfile.open do |zip|
-      File.binwrite(zip.path, 'the archive to return (not a real ZIP for now)')
-      bin = File.binread(zip.path)
-      stub_request(:get, 'https://example.org/pop')
-        .with(query: { job:, owner: })
-        .with(headers: { 'Range' => 'bytes=0-' })
-        .to_return(
-          status: 206,
-          headers: {
-            'Content-Range' => "bytes 0-7/#{bin.size}",
-            'Content-Length' => 8
-          },
-          body: bin[0..7]
-        )
-      stub_request(:get, 'https://example.org/pop')
-        .with(query: { job:, owner: })
-        .with(headers: { 'Range' => 'bytes=8-' })
-        .to_return(
-          status: 206,
-          headers: {
-            'Content-Range' => "bytes 8-#{bin.size - 1}/#{bin.size}",
-            'Content-Length' => bin.size - 8
-          },
-          body: bin[8..]
-        )
-    end
-    Tempfile.open do |zip|
-      assert(fake_baza.pop(owner, zip.path))
-      assert_path_exists(zip.path)
-      assert_equal(bin, File.binread(zip.path))
-    end
-  end
-
   def test_real_http
     WebMock.enable_net_connect!
     req =
