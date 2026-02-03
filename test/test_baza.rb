@@ -383,12 +383,12 @@ class TestBazaRb < Minitest::Test
       )
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact1' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a lock request')
       .with_request(
         method: 'POST',
-        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/foo'),
+        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact1'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => csrf,
@@ -398,7 +398,7 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 302)
     execute_pact do |server|
       baza = baza_client(server.port)
-      baza.lock('foo', 'the-owner')
+      baza.lock('pact1', 'the-owner')
     end
   end
 
@@ -414,13 +414,13 @@ class TestBazaRb < Minitest::Test
       )
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('product is locked', { 'pname' => 'foo', 'owner' => 'another-owner' })
+      .given('product exists', { 'pname' => 'pact2' })
+      .given('product is locked', { 'pname' => 'pact2', 'owner' => 'another-owner' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a lock request that fails')
       .with_request(
         method: 'POST',
-        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/foo'),
+        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact2'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => csrf,
@@ -430,7 +430,7 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 409)
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert_raises(StandardError) { baza.lock('foo', 'the-owner') }
+      assert_raises(StandardError) { baza.lock('pact2', 'the-owner') }
     end
   end
 
@@ -438,9 +438,9 @@ class TestBazaRb < Minitest::Test
     body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
-      .given('durable is locked', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'pact3' })
+      .given('durable exists', { 'id' => 426, 'file' => 'bar.txt', 'pname' => 'pact3' })
+      .given('durable is locked', { 'id' => 426 })
       .upon_receiving('a durable save request')
       .with_request(
         method: 'PUT',
@@ -450,9 +450,9 @@ class TestBazaRb < Minitest::Test
     execute_pact do |server|
       baza = baza_client(server.port)
       Dir.mktmpdir do |dir|
-        file = File.join(dir, 'test.txt')
+        file = File.join(dir, 'tmp.txt')
         File.binwrite(file, body)
-        baza.durable_save(42, file)
+        baza.durable_save(426, file)
       end
     end
   end
@@ -460,8 +460,8 @@ class TestBazaRb < Minitest::Test
   def test_loads_durable
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact4' })
+      .given('durable exists', { 'id' => 427, 'file' => 'bar.txt', 'pname' => 'pact4' })
       .upon_receiving('a durable load request')
       .with_request(
         method: 'GET',
@@ -477,7 +477,7 @@ class TestBazaRb < Minitest::Test
       baza = baza_client(server.port)
       Dir.mktmpdir do |dir|
         file = File.join(dir, 'loaded.txt')
-        baza.durable_load(42, file)
+        baza.durable_load(427, file)
         assert_equal('', File.read(file))
       end
     end
@@ -517,8 +517,8 @@ class TestBazaRb < Minitest::Test
       )
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact7' })
+      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'pact7' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable lock request')
       .with_request(
@@ -549,8 +549,8 @@ class TestBazaRb < Minitest::Test
       )
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact8' })
+      .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'pact8' })
       .given('durable is locked', { 'id' => 42, 'owner' => 'another-owner' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable unlock request')
@@ -636,8 +636,8 @@ class TestBazaRb < Minitest::Test
     csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('valve missing', { 'badge' => 'bar', 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact9' })
+      .given('valve missing', { 'badge' => 'bar', 'pname' => 'pact9' })
       .upon_receiving('an enter request without cached result')
       .with_request(
         method: 'GET',
@@ -659,9 +659,9 @@ class TestBazaRb < Minitest::Test
       )
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
-      .given('valve exists', { 'job' => 42, 'pname' => 'foo', 'badge' => 'bar' })
+      .given('product exists', { 'pname' => 'pact9' })
+      .given('job exists', { 'id' => 42, 'pname' => 'pact9' })
+      .given('valve exists', { 'job' => 42, 'pname' => 'pact9', 'badge' => 'bar' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a valve creation request')
       .with_request(
@@ -672,7 +672,7 @@ class TestBazaRb < Minitest::Test
         body: {
           '_csrf' => csrf,
           'badge' => match_regex(/^[a-z0-9.-]+$/, 'bar'),
-          'pname' => match_regex(/^[a-z0-9]+$/, 'foo'),
+          'pname' => match_regex(/^[a-z0-9]+$/, 'pact9'),
           'result' => match_regex(/^.+$/, 'after'),
           'why' => match_regex(/^.+$/, 'no reason')
         }
@@ -680,7 +680,7 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 302)
     execute_pact do |server|
       baza = baza_client(server.port)
-      result = baza.enter('foo', 'bar', 'no reason', 42) { 'after' }
+      result = baza.enter('pact9', 'bar', 'no reason', 42) { 'after' }
       assert_equal('after', result)
     end
   end
@@ -688,15 +688,15 @@ class TestBazaRb < Minitest::Test
   def test_finds_durable
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'file' => 'bar.txt', 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact10' })
+      .given('durable exists', { 'file' => 'bar.txt', 'pname' => 'pact10' })
       .upon_receiving('a durable find request')
       .with_request(
         method: 'GET',
         path: '/durable-find',
         query: {
           'file' => match_regex(/[a-z0-9.]+/, 'bar.txt'),
-          'pname' => match_regex(/^[a-z0-9]+$/, 'foo')
+          'pname' => match_regex(/^[a-z0-9]+$/, 'pact10')
         }
       )
       .will_respond_with(
@@ -706,7 +706,7 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      id = baza.durable_find('foo', 'bar.txt')
+      id = baza.durable_find('pact10', 'bar.txt')
       assert_equal(42, id)
     end
   end
@@ -714,21 +714,21 @@ class TestBazaRb < Minitest::Test
   def test_doesnt_find_durable
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('durable missing', { 'file' => 'bar.txt', 'pname' => 'foo' })
+      .given('product exists', { 'pname' => 'pact11' })
+      .given('durable missing', { 'file' => 'bar.txt', 'pname' => 'pact11' })
       .upon_receiving('a durable find request that returns not found')
       .with_request(
         method: 'GET',
         path: '/durable-find',
         query: {
           'file' => match_regex(/[a-z0-9.]+/, 'bar.txt'),
-          'pname' => match_regex(/^[a-z0-9]+$/, 'foo')
+          'pname' => match_regex(/^[a-z0-9]+$/, 'pact11')
         }
       )
       .will_respond_with(status: 404)
     execute_pact do |server|
       baza = baza_client(server.port)
-      id = baza.durable_find('foo', 'bar.txt')
+      id = baza.durable_find('pact11', 'bar.txt')
       assert_nil(id)
     end
   end
