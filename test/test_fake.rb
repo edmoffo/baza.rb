@@ -109,15 +109,6 @@ class TestFake < Minitest::Test
     end
   end
 
-  def test_finish
-    baza = BazaRb::Fake.new
-    Dir.mktmpdir do |tmp|
-      f = File.join(tmp, 'test.zip')
-      File.write(f, 'hello')
-      baza.finish(42, f)
-    end
-  end
-
   def test_enter
     baza = BazaRb::Fake.new
     result =

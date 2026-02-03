@@ -233,15 +233,6 @@ class BazaRb::Fake
   end
   # rubocop:enable Naming/PredicateMethod
 
-  # Submit a ZIP archive to finish a previously popped job.
-  #
-  # @param [Integer] id The ID of the job to finish
-  # @param [String] zip The path to the ZIP file containing job results
-  def finish(id, zip)
-    assert_id(id)
-    assert_file(zip)
-  end
-
   # Enter a valve to cache or retrieve a computation result.
   #
   # @param [String] name Name of the job

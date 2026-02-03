@@ -509,22 +509,6 @@ class BazaRb
     success
   end
 
-  # Submit a ZIP archive to finish a previously popped job.
-  #
-  # @param [Integer] id The ID of the job to finish
-  # @param [String] zip The path to the ZIP file containing job results
-  # @raise [ServerFailure] If the submission fails
-  def finish(id, zip)
-    raise 'The ID of the job is nil' if id.nil?
-    raise 'The ID of the job must be a positive integer' unless id.positive?
-    raise 'The "zip" of the job is nil' if zip.nil?
-    raise "The 'zip' file is absent: #{zip}" unless File.exist?(zip)
-    elapsed(@loog, level: Logger::INFO) do
-      upload(home.append('finish').add(id:), zip)
-      throw :"Pushed #{File.size(zip)} bytes to #{@host}, finished job ##{id}"
-    end
-  end
-
   # Enter a valve to cache or retrieve a computation result.
   #
   # Valves prevent duplicate computations by caching results. If a result

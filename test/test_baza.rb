@@ -284,27 +284,6 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  def test_finishes_jobs
-    interaction
-      .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
-      .upon_receiving('a finish request')
-      .with_request(
-        method: 'PUT',
-        path: '/finish',
-        query: { 'id' => match_regex(/^[1-9][0-9]*$/, '42') }
-      )
-      .will_respond_with(status: 200)
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      Tempfile.open do |zip|
-        File.binwrite(zip.path, 'test data')
-        baza.finish(42, zip.path)
-      end
-    end
-  end
-
   def test_finds_recent_job
     interaction
       .given('user is authenticated')
