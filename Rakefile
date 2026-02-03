@@ -23,7 +23,7 @@ task default: %i[clean test picks rubocop yard]
 require 'rake/testtask'
 desc 'Run all unit tests'
 Rake::TestTask.new(:test) do |t|
-  Rake::Cleaner.cleanup_files(['coverage'])
+  Rake::Cleaner.cleanup_files(['coverage', 'BazaRb-Zerocracy.json'])
   t.libs << 'lib' << 'test'
   t.pattern = 'test/**/test_*.rb'
   t.warning = true
