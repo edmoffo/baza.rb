@@ -2,5 +2,11 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:base"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["rdoc", "puma", "psych", "diff-lcs", "nio4r"],
+      "enabled": false
+    }
   ]
 }
