@@ -252,7 +252,9 @@ class TestBazaRb < Minitest::Test
       .upon_receiving('a push request')
       .with_request(
         method: 'PUT',
-        path: match_regex(%r{/push/[a-z0-9]+}, '/push/foo')
+        path: match_regex(%r{/push/[a-z0-9]+}, '/push/foo'),
+        body: Factbase.new.export,
+        headers: { 'Content-Type' => 'application/octet-stream' }
       )
       .will_respond_with(
         status: 200,
@@ -261,7 +263,7 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      baza.push('foo', 'hello, world!', [])
+      baza.push('foo', Factbase.new.export, [])
     end
   end
 

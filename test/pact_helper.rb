@@ -71,6 +71,11 @@ module Pact
           type = headers['Content-Type'] || headers['content-type'] || 'application/json'
           if type.include?('x-www-form-urlencoded')
             PactFfi.with_body(@pact_interaction, part, type, format_form(body))
+          elsif body.is_a?(String) && body.encoding == Encoding::ASCII_8BIT
+            bin = headers['Content-Type'] || headers['content-type'] || 'application/octet-stream'
+            ptr = FFI::MemoryPointer.new(:char, body.bytesize)
+            ptr.put_bytes(0, body)
+            PactFfi.with_binary_body(@pact_interaction, part, bin, ptr, body.bytesize)
           elsif body.is_a?(String)
             PactFfi.with_body(@pact_interaction, part, type, body)
           else
