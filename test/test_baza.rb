@@ -103,7 +103,8 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('user is rich')
-      .given('job exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('a transfer payment request with job')
       .with_request(
         method: 'POST',
@@ -164,7 +165,8 @@ class TestBazaRb < Minitest::Test
   def test_checks_whether_job_is_finished
     interaction
       .given('user is authenticated')
-      .given('job exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('a finished check request')
       .with_request(
         method: 'GET',
@@ -184,7 +186,8 @@ class TestBazaRb < Minitest::Test
   def test_reads_verification_verdict
     interaction
       .given('user is authenticated')
-      .given('job exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('a verification verdict request')
       .with_request(
         method: 'GET',
@@ -209,7 +212,8 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 200, body: csrf)
     interaction
       .given('user is authenticated')
-      .given('job exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('an unlock request')
       .with_request(
@@ -271,7 +275,8 @@ class TestBazaRb < Minitest::Test
   def test_finishes_jobs
     interaction
       .given('user is authenticated')
-      .given('job exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('a finish request')
       .with_request(
         method: 'PUT',
@@ -291,7 +296,8 @@ class TestBazaRb < Minitest::Test
   def test_finds_recent_job
     interaction
       .given('user is authenticated')
-      .given('job exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('a recent job check')
       .with_request(
         method: 'GET',
@@ -331,7 +337,8 @@ class TestBazaRb < Minitest::Test
   def test_checks_job_exit_code
     interaction
       .given('user is authenticated')
-      .given('job exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('an exit code request')
       .with_request(
         method: 'GET',
@@ -352,7 +359,8 @@ class TestBazaRb < Minitest::Test
     body = 'hello, друг!'
     interaction
       .given('user is authenticated')
-      .given('job exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('a stdout request')
       .with_request(
         method: 'GET',
@@ -375,7 +383,8 @@ class TestBazaRb < Minitest::Test
     fb.export
     interaction
       .given('user is authenticated')
-      .given('job exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('a pull request')
       .with_request(
         method: 'GET',
@@ -447,7 +456,8 @@ class TestBazaRb < Minitest::Test
     body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
     interaction
       .given('user is authenticated')
-      .given('durable exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('a durable save request')
       .with_request(
         method: 'PUT',
@@ -467,7 +477,8 @@ class TestBazaRb < Minitest::Test
   def test_loads_durable
     interaction
       .given('user is authenticated')
-      .given('durable exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
       .upon_receiving('a durable load request')
       .with_request(
         method: 'GET',
@@ -487,7 +498,8 @@ class TestBazaRb < Minitest::Test
   def test_loads_durable_empty_content
     interaction
       .given('user is authenticated')
-      .given('durable exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
       .given('durable is empty', { 'id' => 42 })
       .upon_receiving('a durable load request for empty content')
       .with_request(
@@ -513,7 +525,8 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 200, body: csrf)
     interaction
       .given('user is authenticated')
-      .given('durable exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable lock request')
       .with_request(
@@ -540,7 +553,8 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 200, body: csrf)
     interaction
       .given('user is authenticated')
-      .given('durable exists', { 'id' => 42 })
+      .given('product exists', { 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 42, 'pname' => 'foo' })
       .given('durable is locked', { 'id' => 42 })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable unlock request')

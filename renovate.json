@@ -5,8 +5,14 @@
   ],
   "packageRules": [
     {
-      "matchPackageNames": ["rdoc", "puma", "psych", "diff-lcs", "nio4r"],
-      "enabled": false
+      "enabled": false,
+      "matchPackageNames": [
+        "rdoc",
+        "puma",
+        "psych",
+        "diff-lcs",
+        "nio4r"
+      ]
     }
   ]
 }
