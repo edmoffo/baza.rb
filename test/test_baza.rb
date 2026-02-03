@@ -38,11 +38,11 @@ class TestBazaRb < Minitest::Test
     raise 'Pact specification version missing' unless json.dig('metadata', 'pactSpecification', 'version')
     answers = %w[yes done]
     json['interactions'].each do |int|
-      body = int.dig('response', 'body')
+      raw = int.dig('response', 'body')
+      body = raw.is_a?(Hash) ? raw['content'] : raw
       next if body.nil? || body.empty?
       next if answers.include?(body)
-      int.dig('response', 'headers', 'Content-Type')
-      rules = int.dig('response', 'matchingRules')
+      rules = int.dig('response', 'matchingRules', 'body') || int.dig('response', 'matchingRules')
       raise "Response body '#{body}' in '#{int['description']}' looks dynamic but has no matchingRules" if
         rules.nil? && body.match?(/^[0-9]+(\.[0-9]+)?$/)
     end

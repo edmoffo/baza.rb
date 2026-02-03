@@ -152,7 +152,7 @@ module PactV2Minitest
       opts: {
         pact_dir: PROJECT_ROOT,
         log_level: :error,
-        pact_specification: 'V3'
+        pact_specification: 'V4'
       }
     )
   end
