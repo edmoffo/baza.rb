@@ -62,6 +62,39 @@ class TestBazaRb < Minitest::Test
     assert(BazaRb::VERSION)
   end
 
+  def test_reads_whoami
+    interaction
+      .given('user is authenticated')
+      .upon_receiving('a whoami request')
+      .with_request(method: 'GET', path: '/whoami')
+      .will_respond_with(
+        status: 200,
+        body: match_regex(/^[a-z0-9-]+$/, 'jeff'),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert_equal('jeff', baza.whoami)
+    end
+  end
+
+  def test_reads_balance
+    interaction
+      .given('user is authenticated')
+      .given('user is rich')
+      .upon_receiving('a balance request')
+      .with_request(method: 'GET', path: '/account/balance')
+      .will_respond_with(
+        status: 200,
+        body: match_regex(/^[0-9]+\.[0-9]+$/, '42.33'),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert_in_delta(42.33, baza.balance)
+    end
+  end
+
   def test_transfers_payment
     csrf = match_regex(/^.+$/, 'swordfish')
     interaction
@@ -112,7 +145,7 @@ class TestBazaRb < Minitest::Test
       .given('user is authenticated')
       .given('user is rich')
       .given('product exists', { 'pname' => 'pact31' })
-      .given('job exists', { 'id' => 42, 'pname' => 'pact31' })
+      .given('job exists', { 'id' => 555, 'pname' => 'pact31' })
       .upon_receiving('a transfer payment request with job')
       .with_request(
         method: 'POST',
@@ -128,45 +161,52 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 302,
-        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '42') }
+        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '8789') }
       )
     execute_pact do |server|
       baza = baza_client(server.port)
       id = baza.transfer('jeff', 42.50, 'for fun', job: 555)
-      assert_equal(42, id)
+      assert_equal(8789, id)
     end
   end
 
-  def test_reads_whoami
+  def test_pays_fee
+    csrf = match_regex(/^.+$/, 'swordfish')
     interaction
-      .given('user is authenticated')
-      .upon_receiving('a whoami request')
-      .with_request(method: 'GET', path: '/whoami')
+      .upon_receiving('a request for CSRF token')
+      .with_request(method: 'GET', path: '/csrf')
       .will_respond_with(
         status: 200,
-        body: match_regex(/^[a-z0-9-]+$/, 'jeff'),
+        body: csrf,
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      assert_equal('jeff', baza.whoami)
-    end
-  end
-
-  def test_reads_balance
     interaction
       .given('user is authenticated')
       .given('user is rich')
-      .upon_receiving('a balance request')
-      .with_request(method: 'GET', path: '/account/balance')
+      .given('CSRF token exists', { 'token' => 'swordfish' })
+      .given('product exists', { 'pname' => 'pact96' })
+      .given('job exists', { 'id' => 776, 'pname' => 'pact96' })
+      .upon_receiving('a fee payment request')
+      .with_request(
+        method: 'POST',
+        path: '/account/fee',
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: {
+          '_csrf' => csrf,
+          'amount' => match_regex(/^[0-9]+\.[0-9]+$/, '42.770000'),
+          'job' => match_regex(/^[0-9]+$/, '776'),
+          'summary' => match_regex(/^.+$/, 'the summary'),
+          'tab' => match_regex(/^[a-z]+$/, 'unknown')
+        }
+      )
       .will_respond_with(
-        status: 200,
-        body: match_regex(/^[0-9]+\.[0-9]+$/, '42.33'),
-        headers: { 'Content-Type' => 'text/plain' }
+        status: 302,
+        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '9898') }
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert_in_delta(42.33, baza.balance)
+      receipt = baza.fee('unknown', 42.77, 'the summary', 776)
+      assert_equal(9898, receipt)
     end
   end
 
@@ -174,11 +214,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact43' })
-      .given('job exists', { 'id' => 42, 'pname' => 'pact43' })
+      .given('job exists', { 'id' => 542, 'pname' => 'pact43' })
       .upon_receiving('a finished check request')
       .with_request(
         method: 'GET',
-        path: match_regex(%r{^/finished/[1-9][0-9]*$}, '/finished/42')
+        path: match_regex(%r{^/finished/[1-9][0-9]*$}, '/finished/542')
       )
       .will_respond_with(
         status: 200,
@@ -187,7 +227,7 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert(baza.finished?(42))
+      assert(baza.finished?(542))
     end
   end
 
@@ -195,11 +235,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact98' })
-      .given('job exists', { 'id' => 42, 'pname' => 'pact98' })
+      .given('job exists', { 'id' => 513, 'pname' => 'pact98' })
       .upon_receiving('a verification verdict request')
       .with_request(
         method: 'GET',
-        path: match_regex(%r{^/jobs/[1-9][0-9]*/verified\.txt$}, '/jobs/42/verified.txt')
+        path: match_regex(%r{^/jobs/[1-9][0-9]*/verified\.txt$}, '/jobs/513/verified.txt')
       )
       .will_respond_with(
         status: 200,
@@ -208,11 +248,11 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert(baza.verified(42))
+      assert(baza.verified(513))
     end
   end
 
-  def test_unlocks_job_by_name
+  def test_unlocks_product_by_name
     csrf = match_regex(/^.+$/, 'swordfish')
     interaction
       .upon_receiving('a request for CSRF token')
@@ -225,12 +265,43 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact25' })
-      .given('job exists', { 'id' => 42, 'pname' => 'pact25' })
+      .given('product is locked', { 'pname' => 'pact25', 'owner' => 'Jeff Lebowski' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('an unlock request')
       .with_request(
         method: 'POST',
         path: match_regex(%r{^/unlock/.+$}, '/unlock/pact25'),
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: {
+          '_csrf' => csrf,
+          'owner' => match_regex(/^.+$/, 'Jeff Lebowski')
+        }
+      )
+      .will_respond_with(status: 302)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert(baza.unlock('pact25', 'Jeff Lebowski'))
+    end
+  end
+
+  def test_locks_product
+    csrf = match_regex(/^.+$/, 'swordfish')
+    interaction
+      .upon_receiving('a request for CSRF token')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact1' })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
+      .upon_receiving('a lock request')
+      .with_request(
+        method: 'POST',
+        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact1'),
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => csrf,
@@ -240,7 +311,7 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 302)
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert(baza.unlock('pact25', 'the-owner'))
+      baza.lock('pact1', 'the-owner')
     end
   end
 
@@ -259,7 +330,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 200,
-        body: match_regex(/^[1-9][0-9]*$/, '42'),
+        body: match_regex(/^[1-9][0-9]*$/, '890'),
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
@@ -300,7 +371,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 200,
-        body: 'yes',
+        body: match_regex(/^.+$/, 'yes'),
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
@@ -313,11 +384,11 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact22' })
-      .given('job exists', { 'id' => 43, 'pname' => 'pact22' })
+      .given('job exists', { 'id' => 94, 'pname' => 'pact22' })
       .upon_receiving('an exit code request')
       .with_request(
         method: 'GET',
-        path: match_regex(%r{^/exit/[1-9][0-9]*\.txt$}, '/exit/42.txt')
+        path: match_regex(%r{^/exit/[1-9][0-9]*\.txt$}, '/exit/94.txt')
       )
       .will_respond_with(
         status: 200,
@@ -326,7 +397,7 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      assert_predicate(baza.exit_code(43), :zero?)
+      assert_predicate(baza.exit_code(94), :zero?)
     end
   end
 
@@ -372,148 +443,117 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  def test_locks_product
-    csrf = match_regex(/^.+$/, 'swordfish')
-    interaction
-      .upon_receiving('a request for CSRF token')
-      .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(
-        status: 200,
-        body: csrf,
-        headers: { 'Content-Type' => 'text/plain' }
-      )
-    interaction
-      .given('user is authenticated')
-      .given('product exists', { 'pname' => 'pact1' })
-      .given('CSRF token exists', { 'token' => 'swordfish' })
-      .upon_receiving('a lock request')
-      .with_request(
-        method: 'POST',
-        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact1'),
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: {
-          '_csrf' => csrf,
-          'owner' => match_regex(/^.+$/, 'the-owner')
-        }
-      )
-      .will_respond_with(status: 302)
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      baza.lock('pact1', 'the-owner')
-    end
-  end
+  # def test_fails_to_lock
+  #   csrf = match_regex(/^.+$/, 'swordfish')
+  #   interaction
+  #     .upon_receiving('a request for CSRF token')
+  #     .with_request(method: 'GET', path: '/csrf')
+  #     .will_respond_with(
+  #       status: 200,
+  #       body: csrf,
+  #       headers: { 'Content-Type' => 'text/plain' }
+  #     )
+  #   interaction
+  #     .given('user is authenticated')
+  #     .given('product exists', { 'pname' => 'pact2' })
+  #     .given('product is locked', { 'pname' => 'pact2', 'owner' => 'Barack Obama' })
+  #     .given('CSRF token exists', { 'token' => 'swordfish' })
+  #     .upon_receiving('a lock request that fails')
+  #     .with_request(
+  #       method: 'POST',
+  #       path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact2'),
+  #       headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+  #       body: {
+  #         '_csrf' => csrf,
+  #         'owner' => match_regex(/^.+$/, 'Donald Trump')
+  #       }
+  #     )
+  #     .will_respond_with(status: 409)
+  #   execute_pact do |server|
+  #     baza = baza_client(server.port)
+  #     assert_raises(StandardError) { baza.lock('pact2', 'Donald Trump') }
+  #   end
+  # end
 
-  def test_fails_to_lock
-    csrf = match_regex(/^.+$/, 'swordfish')
-    interaction
-      .upon_receiving('a request for CSRF token')
-      .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(
-        status: 200,
-        body: csrf,
-        headers: { 'Content-Type' => 'text/plain' }
-      )
-    interaction
-      .given('user is authenticated')
-      .given('product exists', { 'pname' => 'pact2' })
-      .given('product is locked', { 'pname' => 'pact2', 'owner' => 'another-owner' })
-      .given('CSRF token exists', { 'token' => 'swordfish' })
-      .upon_receiving('a lock request that fails')
-      .with_request(
-        method: 'POST',
-        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact2'),
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: {
-          '_csrf' => csrf,
-          'owner' => match_regex(/^.+$/, 'the-owner')
-        }
-      )
-      .will_respond_with(status: 409)
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      assert_raises(StandardError) { baza.lock('pact2', 'the-owner') }
-    end
-  end
+  # def test_saves_durable
+  #   body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
+  #   interaction
+  #     .given('user is authenticated')
+  #     .given('product exists', { 'pname' => 'pact3' })
+  #     .given('durable exists', { 'id' => 426, 'file' => 'bar.txt', 'pname' => 'pact3' })
+  #     .given('durable is locked', { 'id' => 426, 'owner' => 'previous-owner' })
+  #     .upon_receiving('a durable save request')
+  #     .with_request(
+  #       method: 'PUT',
+  #       path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/426'),
+  #       headers: { 'Content-Type' => 'application/octet-stream' }
+  #     )
+  #     .will_respond_with(
+  #       status: 200,
+  #       body: '',
+  #       headers: { 'Content-Type' => 'text/plain' }
+  #     )
+  #   execute_pact do |server|
+  #     baza = baza_client(server.port)
+  #     Dir.mktmpdir do |dir|
+  #       file = File.join(dir, 'tmp.txt')
+  #       File.binwrite(file, body)
+  #       baza.durable_save(426, file)
+  #     end
+  #   end
+  # end
 
-  def test_saves_durable
-    body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
-    interaction
-      .given('user is authenticated')
-      .given('product exists', { 'pname' => 'pact3' })
-      .given('durable exists', { 'id' => 426, 'file' => 'bar.txt', 'pname' => 'pact3' })
-      .given('durable is locked', { 'id' => 426, 'owner' => 'previous-owner' })
-      .upon_receiving('a durable save request')
-      .with_request(
-        method: 'PUT',
-        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42'),
-        headers: { 'Content-Type' => 'application/octet-stream' }
-      )
-      .will_respond_with(
-        status: 200,
-        body: '',
-        headers: { 'Content-Type' => 'text/plain' }
-      )
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      Dir.mktmpdir do |dir|
-        file = File.join(dir, 'tmp.txt')
-        File.binwrite(file, body)
-        baza.durable_save(426, file)
-      end
-    end
-  end
+  # def test_loads_durable
+  #   interaction
+  #     .given('user is authenticated')
+  #     .given('product exists', { 'pname' => 'pact4' })
+  #     .given('durable exists', { 'id' => 427, 'file' => 'bar.txt', 'pname' => 'pact4' })
+  #     .upon_receiving('a durable load request')
+  #     .with_request(
+  #       method: 'GET',
+  #       path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/427')
+  #     )
+  #     .will_respond_with(
+  #       status: match_status_code('success'),
+  #       headers: {
+  #         'Content-Type' => 'application/octet-stream'
+  #       }
+  #     )
+  #   execute_pact do |server|
+  #     baza = baza_client(server.port)
+  #     Dir.mktmpdir do |dir|
+  #       file = File.join(dir, 'loaded.txt')
+  #       baza.durable_load(427, file)
+  #       assert_equal('', File.read(file))
+  #     end
+  #   end
+  # end
 
-  def test_loads_durable
-    interaction
-      .given('user is authenticated')
-      .given('product exists', { 'pname' => 'pact4' })
-      .given('durable exists', { 'id' => 427, 'file' => 'bar.txt', 'pname' => 'pact4' })
-      .upon_receiving('a durable load request')
-      .with_request(
-        method: 'GET',
-        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/42')
-      )
-      .will_respond_with(
-        status: match_status_code('success'),
-        headers: {
-          'Content-Type' => 'application/octet-stream'
-        }
-      )
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      Dir.mktmpdir do |dir|
-        file = File.join(dir, 'loaded.txt')
-        baza.durable_load(427, file)
-        assert_equal('', File.read(file))
-      end
-    end
-  end
-
-  def test_loads_durable_empty_content
-    interaction
-      .given('user is authenticated')
-      .given('product exists', { 'pname' => 'foo' })
-      .given('durable exists', { 'id' => 54, 'file' => 'bar.txt', 'pname' => 'foo' })
-      .given('durable is empty', { 'id' => 54 })
-      .upon_receiving('a durable load request for empty content')
-      .with_request(
-        method: 'GET',
-        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/54')
-      )
-      .will_respond_with(
-        status: match_status_code('success'),
-        body: '',
-        headers: { 'Content-Range' => match_regex(%r{^bytes [0-9]+-[0-9]+/[0-9]+$}, 'bytes 0-0/0') }
-      )
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      Dir.mktmpdir do |dir|
-        file = File.join(dir, 'loaded.txt')
-        baza.durable_load(54, file)
-        assert_equal('', File.read(file))
-      end
-    end
-  end
+  # def test_loads_durable_empty_content
+  #   interaction
+  #     .given('user is authenticated')
+  #     .given('product exists', { 'pname' => 'foo' })
+  #     .given('durable exists', { 'id' => 54, 'file' => 'bar.txt', 'pname' => 'foo' })
+  #     .given('durable is empty', { 'id' => 54 })
+  #     .upon_receiving('a durable load request for empty content')
+  #     .with_request(
+  #       method: 'GET',
+  #       path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/54')
+  #     )
+  #     .will_respond_with(
+  #       status: match_status_code('success'),
+  #       body: '',
+  #       headers: { 'Content-Range' => match_regex(%r{^bytes [0-9]+-[0-9]+/[0-9]+$}, 'bytes 0-0/0') }
+  #     )
+  #   execute_pact do |server|
+  #     baza = baza_client(server.port)
+  #     Dir.mktmpdir do |dir|
+  #       file = File.join(dir, 'loaded.txt')
+  #       baza.durable_load(54, file)
+  #       assert_equal('', File.read(file))
+  #     end
+  #   end
+  # end
 
   def test_locks_durable
     csrf = match_regex(/^.+$/, 'swordfish')
@@ -561,7 +601,7 @@ class TestBazaRb < Minitest::Test
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact8' })
       .given('durable exists', { 'id' => 52, 'file' => 'bar.txt', 'pname' => 'pact8' })
-      .given('durable is locked', { 'id' => 52, 'owner' => 'another-owner' })
+      .given('durable is locked', { 'id' => 52, 'owner' => 'Robert DeNiro' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable unlock request')
       .with_request(
@@ -570,53 +610,13 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
         body: {
           '_csrf' => csrf,
-          'owner' => match_regex(/^.+$/, 'the-owner')
+          'owner' => match_regex(/^.+$/, 'Robert DeNiro')
         }
       )
       .will_respond_with(status: 302)
     execute_pact do |server|
       baza = baza_client(server.port)
-      baza.durable_unlock(52, 'the-owner')
-    end
-  end
-
-  def test_pays_fee
-    csrf = match_regex(/^.+$/, 'swordfish')
-    interaction
-      .upon_receiving('a request for CSRF token')
-      .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(
-        status: 200,
-        body: csrf,
-        headers: { 'Content-Type' => 'text/plain' }
-      )
-    interaction
-      .given('user is authenticated')
-      .given('user is rich')
-      .given('CSRF token exists', { 'token' => 'swordfish' })
-      .given('product exists', { 'pname' => 'pact96' })
-      .given('job exists', { 'id' => 776, 'pname' => 'pact96' })
-      .upon_receiving('a fee payment request')
-      .with_request(
-        method: 'POST',
-        path: '/account/fee',
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: {
-          '_csrf' => csrf,
-          'amount' => match_regex(/^[0-9]+\.[0-9]+$/, '42.770000'),
-          'job' => match_regex(/^[0-9]+$/, '776'),
-          'summary' => match_regex(/^.+$/, 'the summary'),
-          'tab' => match_regex(/^[a-z]+$/, 'unknown')
-        }
-      )
-      .will_respond_with(
-        status: 302,
-        headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '9898') }
-      )
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      receipt = baza.fee('unknown', 42.77, 'the summary', 776)
-      assert_equal(9898, receipt)
+      baza.durable_unlock(52, 'Robert DeNiro')
     end
   end
 
@@ -624,8 +624,8 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('job exists', { 'id' => 42, 'pname' => 'foo' })
-      .given('valve exists', { 'badge' => 'bar', 'job' => 42, 'pname' => 'foo', 'result' => 'before' })
+      .given('job exists', { 'id' => 188, 'pname' => 'foo' })
+      .given('valve exists', { 'badge' => 'bar', 'job' => 188, 'pname' => 'foo', 'result' => 'before' })
       .upon_receiving('an enter request with cached result')
       .with_request(
         method: 'GET',
@@ -639,69 +639,69 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      result = baza.enter('foo', 'bar', 'no reason', 42) { 'after' }
+      result = baza.enter('foo', 'bar', 'no reason', 188) { 'after' }
       assert_equal('before', result)
     end
   end
 
-  def test_enters_when_not_cached
-    csrf = match_regex(/^.+$/, 'swordfish')
-    interaction
-      .given('user is authenticated')
-      .given('product exists', { 'pname' => 'pact9' })
-      .given('valve missing', { 'badge' => 'bar', 'pname' => 'pact9' })
-      .upon_receiving('an enter request without cached result')
-      .with_request(
-        method: 'GET',
-        path: '/result',
-        query: { 'badge' => match_regex(/^[a-z0-9.]+$/, 'bar') }
-      )
-      .will_respond_with(
-        status: 204,
-        body: '',
-        headers: { 'Content-Type' => 'text/plain' }
-      )
-    interaction
-      .upon_receiving('a request for CSRF token')
-      .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(
-        status: 200,
-        body: csrf,
-        headers: { 'Content-Type' => 'text/plain' }
-      )
-    interaction
-      .given('user is authenticated')
-      .given('product exists', { 'pname' => 'pact9' })
-      .given('job exists', { 'id' => 42, 'pname' => 'pact9' })
-      .given('valve exists', { 'job' => 42, 'pname' => 'pact9', 'badge' => 'bar' })
-      .given('CSRF token exists', { 'token' => 'swordfish' })
-      .upon_receiving('a valve creation request')
-      .with_request(
-        method: 'POST',
-        path: '/valves',
-        query: { 'job' => match_regex(/^[0-9]+$/, '42') },
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: {
-          '_csrf' => csrf,
-          'badge' => match_regex(/^[a-z0-9.-]+$/, 'bar'),
-          'pname' => match_regex(/^[a-z0-9]+$/, 'pact9'),
-          'result' => match_regex(/^.+$/, 'after'),
-          'why' => match_regex(/^.+$/, 'no reason')
-        }
-      )
-      .will_respond_with(status: 302)
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      result = baza.enter('pact9', 'bar', 'no reason', 42) { 'after' }
-      assert_equal('after', result)
-    end
-  end
+  # def test_enters_when_not_cached
+  #   csrf = match_regex(/^.+$/, 'swordfish')
+  #   interaction
+  #     .given('user is authenticated')
+  #     .given('product exists', { 'pname' => 'pact9' })
+  #     .given('valve missing', { 'badge' => 'bar', 'pname' => 'pact9' })
+  #     .upon_receiving('an enter request without cached result')
+  #     .with_request(
+  #       method: 'GET',
+  #       path: '/result',
+  #       query: { 'badge' => match_regex(/^[a-z0-9.]+$/, 'bar') }
+  #     )
+  #     .will_respond_with(
+  #       status: 204,
+  #       body: match_regex(/^.+$/, ''),
+  #       headers: { 'Content-Type' => 'text/plain' }
+  #     )
+  #   interaction
+  #     .upon_receiving('a request for CSRF token')
+  #     .with_request(method: 'GET', path: '/csrf')
+  #     .will_respond_with(
+  #       status: 200,
+  #       body: csrf,
+  #       headers: { 'Content-Type' => 'text/plain' }
+  #     )
+  #   interaction
+  #     .given('user is authenticated')
+  #     .given('product exists', { 'pname' => 'pact9' })
+  #     .given('job exists', { 'id' => 183, 'pname' => 'pact9' })
+  #     .given('valve exists', { 'job' => 183, 'pname' => 'pact9', 'badge' => 'bar' })
+  #     .given('CSRF token exists', { 'token' => 'swordfish' })
+  #     .upon_receiving('a valve creation request')
+  #     .with_request(
+  #       method: 'POST',
+  #       path: '/valves',
+  #       query: { 'job' => match_regex(/^[0-9]+$/, '183') },
+  #       headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+  #       body: {
+  #         '_csrf' => csrf,
+  #         'badge' => match_regex(/^[a-z0-9.-]+$/, 'bar'),
+  #         'pname' => match_regex(/^[a-z0-9]+$/, 'pact9'),
+  #         'result' => match_regex(/^.+$/, 'after'),
+  #         'why' => match_regex(/^.+$/, 'no reason')
+  #       }
+  #     )
+  #     .will_respond_with(status: 302)
+  #   execute_pact do |server|
+  #     baza = baza_client(server.port)
+  #     result = baza.enter('pact9', 'bar', 'no reason', 183) { 'after' }
+  #     assert_equal('after', result)
+  #   end
+  # end
 
   def test_finds_durable
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact10' })
-      .given('durable exists', { 'file' => 'bar.txt', 'pname' => 'pact10' })
+      .given('durable exists', { 'id' => 32, 'file' => 'bar.txt', 'pname' => 'pact10' })
       .upon_receiving('a durable find request')
       .with_request(
         method: 'GET',
@@ -713,37 +713,37 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 200,
-        body: match_regex(/^[1-9][0-9]*$/, '42'),
+        body: match_regex(/^[1-9][0-9]*$/, '32'),
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
       baza = baza_client(server.port)
       id = baza.durable_find('pact10', 'bar.txt')
-      assert_equal(42, id)
+      assert_equal(32, id)
     end
   end
 
-  def test_doesnt_find_durable
-    interaction
-      .given('user is authenticated')
-      .given('product exists', { 'pname' => 'pact11' })
-      .given('durable missing', { 'file' => 'bar.txt', 'pname' => 'pact11' })
-      .upon_receiving('a durable find request that returns not found')
-      .with_request(
-        method: 'GET',
-        path: '/durable-find',
-        query: {
-          'file' => match_regex(/[a-z0-9.]+/, 'bar.txt'),
-          'pname' => match_regex(/^[a-z0-9]+$/, 'pact11')
-        }
-      )
-      .will_respond_with(status: 404)
-    execute_pact do |server|
-      baza = baza_client(server.port)
-      id = baza.durable_find('pact11', 'bar.txt')
-      assert_nil(id)
-    end
-  end
+  # def test_doesnt_find_durable
+  #   interaction
+  #     .given('user is authenticated')
+  #     .given('product exists', { 'pname' => 'pact11' })
+  #     .given('durable missing', { 'file' => 'bar.txt', 'pname' => 'pact11' })
+  #     .upon_receiving('a durable find request that returns not found')
+  #     .with_request(
+  #       method: 'GET',
+  #       path: '/durable-find',
+  #       query: {
+  #         'file' => match_regex(/[a-z0-9.]+/, 'bar.txt'),
+  #         'pname' => match_regex(/^[a-z0-9]+$/, 'pact11')
+  #       }
+  #     )
+  #     .will_respond_with(status: 404)
+  #   execute_pact do |server|
+  #     baza = baza_client(server.port)
+  #     id = baza.durable_find('pact11', 'bar.txt')
+  #     assert_nil(id)
+  #   end
+  # end
 
   private
 

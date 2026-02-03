@@ -34,6 +34,17 @@ module Pact
           JSON.dump(obj)
         end
 
+        def matcher_rules(matcher)
+          basic = matcher.as_basic
+          rule = basic.each_with_object({}) do |(k, v), h|
+            key = k.to_s
+            next if key == 'value'
+            h['match'] = v if key == 'pact:matcher:type'
+            h[key] = v unless key == 'pact:matcher:type'
+          end
+          JSON.dump('body' => { '$' => { 'combine' => 'AND', 'matchers' => [rule] } })
+        end
+
         def extract_value(val)
           return val['value'] if val.is_a?(Hash) && val.key?('value')
           val
@@ -103,6 +114,9 @@ module Pact
           type = headers['Content-Type'] || headers['content-type']
           if body.is_a?(String)
             PactFfi.with_body(@pact_interaction, part, type || 'text/plain', body)
+          elsif body.is_a?(Pact::V2::Matchers::Base) && type && !type.include?('json')
+            PactFfi.with_body(@pact_interaction, part, type, body.as_basic['value'].to_s)
+            PactFfi.with_matching_rules(@pact_interaction, part, matcher_rules(body))
           elsif body.is_a?(Pact::V2::Matchers::Base)
             PactFfi.with_body(@pact_interaction, part, 'application/json', format_value(body))
           else
@@ -119,26 +133,6 @@ module Pact
 end
 
 FileUtils.mkdir_p(PACT_LOG_DIR)
-
-# Patch BazaRb to strip JSON quotes from text/plain responses.
-# This is needed because pact-ffi returns JSON-encoded values when using matchers,
-# but the Content-Type header says text/plain.
-class BazaRb
-  private
-
-  alias original_get get
-  def get(uri, allowed = [200])
-    ret = original_get(uri, allowed)
-    body = ret.body
-    if body.is_a?(String) && body.start_with?('"') && body.end_with?('"')
-      opts = ret.instance_variable_get(:@options)
-      parsed = JSON.parse(body)
-      opts[:response_body] = parsed
-      opts[:body] = parsed
-    end
-    ret
-  end
-end
 
 # Mixin for v2 pact tests with minitest.
 module PactV2Minitest
