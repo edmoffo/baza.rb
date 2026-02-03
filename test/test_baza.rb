@@ -443,37 +443,37 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  # def test_fails_to_lock
-  #   csrf = match_regex(/^.+$/, 'swordfish')
-  #   interaction
-  #     .upon_receiving('a request for CSRF token')
-  #     .with_request(method: 'GET', path: '/csrf')
-  #     .will_respond_with(
-  #       status: 200,
-  #       body: csrf,
-  #       headers: { 'Content-Type' => 'text/plain' }
-  #     )
-  #   interaction
-  #     .given('user is authenticated')
-  #     .given('product exists', { 'pname' => 'pact2' })
-  #     .given('product is locked', { 'pname' => 'pact2', 'owner' => 'Barack Obama' })
-  #     .given('CSRF token exists', { 'token' => 'swordfish' })
-  #     .upon_receiving('a lock request that fails')
-  #     .with_request(
-  #       method: 'POST',
-  #       path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact2'),
-  #       headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-  #       body: {
-  #         '_csrf' => csrf,
-  #         'owner' => match_regex(/^.+$/, 'Donald Trump')
-  #       }
-  #     )
-  #     .will_respond_with(status: 409)
-  #   execute_pact do |server|
-  #     baza = baza_client(server.port)
-  #     assert_raises(StandardError) { baza.lock('pact2', 'Donald Trump') }
-  #   end
-  # end
+  def test_fails_to_lock
+    csrf = match_regex(/^.+$/, 'swordfish')
+    interaction
+      .upon_receiving('a request for CSRF token')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact2' })
+      .given('product is locked', { 'pname' => 'pact2', 'owner' => 'Barack Obama' })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
+      .upon_receiving('a lock request that fails')
+      .with_request(
+        method: 'POST',
+        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact2'),
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: {
+          '_csrf' => csrf,
+          'owner' => match_regex(/^.+$/, 'Donald Trump')
+        }
+      )
+      .will_respond_with(status: 409)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      assert_raises(StandardError) { baza.lock('pact2', 'Donald Trump') }
+    end
+  end
 
   # def test_saves_durable
   #   body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
