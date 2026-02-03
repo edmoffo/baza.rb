@@ -503,57 +503,57 @@ class TestBazaRb < Minitest::Test
   #   end
   # end
 
-  # def test_loads_durable
-  #   interaction
-  #     .given('user is authenticated')
-  #     .given('product exists', { 'pname' => 'pact4' })
-  #     .given('durable exists', { 'id' => 427, 'file' => 'bar.txt', 'pname' => 'pact4' })
-  #     .upon_receiving('a durable load request')
-  #     .with_request(
-  #       method: 'GET',
-  #       path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/427')
-  #     )
-  #     .will_respond_with(
-  #       status: match_status_code('success'),
-  #       headers: {
-  #         'Content-Type' => 'application/octet-stream'
-  #       }
-  #     )
-  #   execute_pact do |server|
-  #     baza = baza_client(server.port)
-  #     Dir.mktmpdir do |dir|
-  #       file = File.join(dir, 'loaded.txt')
-  #       baza.durable_load(427, file)
-  #       assert_equal('', File.read(file))
-  #     end
-  #   end
-  # end
+  def test_loads_durable
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact4' })
+      .given('durable exists', { 'id' => 427, 'file' => 'bar.txt', 'pname' => 'pact4' })
+      .upon_receiving('a durable load request')
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/427')
+      )
+      .will_respond_with(
+        status: match_status_code('success'),
+        headers: {
+          'Content-Type' => 'application/octet-stream'
+        }
+      )
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'loaded.txt')
+        baza.durable_load(427, file)
+        assert_equal('', File.read(file))
+      end
+    end
+  end
 
-  # def test_loads_durable_empty_content
-  #   interaction
-  #     .given('user is authenticated')
-  #     .given('product exists', { 'pname' => 'foo' })
-  #     .given('durable exists', { 'id' => 54, 'file' => 'bar.txt', 'pname' => 'foo' })
-  #     .given('durable is empty', { 'id' => 54 })
-  #     .upon_receiving('a durable load request for empty content')
-  #     .with_request(
-  #       method: 'GET',
-  #       path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/54')
-  #     )
-  #     .will_respond_with(
-  #       status: match_status_code('success'),
-  #       body: '',
-  #       headers: { 'Content-Range' => match_regex(%r{^bytes [0-9]+-[0-9]+/[0-9]+$}, 'bytes 0-0/0') }
-  #     )
-  #   execute_pact do |server|
-  #     baza = baza_client(server.port)
-  #     Dir.mktmpdir do |dir|
-  #       file = File.join(dir, 'loaded.txt')
-  #       baza.durable_load(54, file)
-  #       assert_equal('', File.read(file))
-  #     end
-  #   end
-  # end
+  def test_loads_durable_empty_content
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'foo' })
+      .given('durable exists', { 'id' => 54, 'file' => 'bar.txt', 'pname' => 'foo' })
+      .given('durable is empty', { 'id' => 54 })
+      .upon_receiving('a durable load request for empty content')
+      .with_request(
+        method: 'GET',
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/54')
+      )
+      .will_respond_with(
+        status: match_status_code('success'),
+        body: '',
+        headers: { 'Content-Range' => match_regex(%r{^bytes [0-9]+-[0-9]+/[0-9]+$}, 'bytes 0-0/0') }
+      )
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'loaded.txt')
+        baza.durable_load(54, file)
+        assert_equal('', File.read(file))
+      end
+    end
+  end
 
   def test_locks_durable
     csrf = match_regex(/^.+$/, 'swordfish')
