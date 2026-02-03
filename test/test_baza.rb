@@ -433,7 +433,7 @@ class TestBazaRb < Minitest::Test
     interaction
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
-      .given('product is locked', { 'pname' => 'foo' })
+      .given('product is locked', { 'pname' => 'foo', 'owner' => 'another-owner' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a lock request that fails')
       .with_request(
@@ -555,7 +555,7 @@ class TestBazaRb < Minitest::Test
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'foo' })
       .given('durable exists', { 'id' => 42, 'file' => 'bar.txt', 'pname' => 'foo' })
-      .given('durable is locked', { 'id' => 42 })
+      .given('durable is locked', { 'id' => 42, 'owner' => 'another-owner' })
       .given('CSRF token exists', { 'token' => 'swordfish' })
       .upon_receiving('a durable unlock request')
       .with_request(
