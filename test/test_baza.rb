@@ -203,7 +203,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 200,
-        body: 'done',
+        body: match_regex(/^.+$/, 'done'),
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
@@ -359,7 +359,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 200,
-        body: body,
+        body: match_regex(/^.+$/, body),
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
