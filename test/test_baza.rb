@@ -715,27 +715,27 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  # def test_doesnt_find_durable
-  #   interaction
-  #     .given('user is authenticated')
-  #     .given('product exists', { 'pname' => 'pact11' })
-  #     .given('durable missing', { 'file' => 'bar.txt', 'pname' => 'pact11' })
-  #     .upon_receiving('a durable find request that returns not found')
-  #     .with_request(
-  #       method: 'GET',
-  #       path: '/durable-find',
-  #       query: {
-  #         'file' => match_regex(/[a-z0-9.]+/, 'bar.txt'),
-  #         'pname' => match_regex(/^[a-z0-9]+$/, 'pact11')
-  #       }
-  #     )
-  #     .will_respond_with(status: 404)
-  #   execute_pact do |server|
-  #     baza = baza_client(server.port)
-  #     id = baza.durable_find('pact11', 'bar.txt')
-  #     assert_nil(id)
-  #   end
-  # end
+  def test_doesnt_find_durable
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact11' })
+      .given('durable missing', { 'file' => 'bar.txt', 'pname' => 'pact11' })
+      .upon_receiving('a durable find request that returns not found')
+      .with_request(
+        method: 'GET',
+        path: '/durable-find',
+        query: {
+          'file' => match_regex(/[a-z0-9.]+/, 'bar.txt'),
+          'pname' => match_regex(/^[a-z0-9]+$/, 'pact11')
+        }
+      )
+      .will_respond_with(status: 404)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      id = baza.durable_find('pact11', 'bar.txt')
+      assert_nil(id)
+    end
+  end
 
   private
 
