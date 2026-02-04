@@ -513,12 +513,7 @@ class TestBazaRb < Minitest::Test
         method: 'GET',
         path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/427')
       )
-      .will_respond_with(
-        status: match_status_code('success'),
-        headers: {
-          'Content-Type' => 'application/octet-stream'
-        }
-      )
+      .will_respond_with(status: match_status_code('success'))
     execute_pact do |server|
       baza = baza_client(server.port)
       Dir.mktmpdir do |dir|
@@ -542,8 +537,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: match_status_code('success'),
-        body: '',
-        headers: { 'Content-Range' => match_regex(%r{^bytes [0-9]+-[0-9]+/[0-9]+$}, 'bytes 0-0/0') }
+        body: ''
       )
     execute_pact do |server|
       baza = baza_client(server.port)
