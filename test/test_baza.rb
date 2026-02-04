@@ -222,7 +222,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(
         status: 200,
-        body: match_regex(/^yes|no$/, 'yes'),
+        body: match_regex(/^(yes|started .+)$/, 'yes'),
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
