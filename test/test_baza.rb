@@ -333,7 +333,7 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^.+$/, 'Received 4 bytes as push-5-pact72'),
         headers: {
           'Content-Type' => 'text/plain',
-          'X-Zerocracy-JobId' => '890'
+          'X-Zerocracy-JobId' => match_regex(/^[0-9]+$/, '890')
         }
       )
     execute_pact do |server|
