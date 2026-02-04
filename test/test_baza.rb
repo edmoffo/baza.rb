@@ -236,6 +236,7 @@ class TestBazaRb < Minitest::Test
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact98' })
       .given('job exists', { 'id' => 513, 'pname' => 'pact98' })
+      .given('job is finished', { 'id' => 513 })
       .upon_receiving('a verification verdict request')
       .with_request(
         method: 'GET',
@@ -434,6 +435,7 @@ class TestBazaRb < Minitest::Test
       .given('user is authenticated')
       .given('product exists', { 'pname' => 'pact93' })
       .given('job exists', { 'id' => 47, 'pname' => 'pact93' })
+      .given('job is finished', { 'id' => 47 })
       .upon_receiving('a pull request')
       .with_request(
         method: 'GET',
