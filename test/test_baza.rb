@@ -252,6 +252,37 @@ class TestBazaRb < Minitest::Test
     end
   end
 
+  def test_locks_product
+    csrf = match_regex(/^.+$/, 'swordfish')
+    interaction
+      .upon_receiving('a request for CSRF token')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact1' })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
+      .upon_receiving('a lock request')
+      .with_request(
+        method: 'POST',
+        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact1'),
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: {
+          '_csrf' => csrf,
+          'owner' => match_regex(/^.+$/, 'the-owner')
+        }
+      )
+      .will_respond_with(status: 302)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      baza.lock('pact1', 'the-owner')
+    end
+  end
+
   def test_unlocks_product_by_name
     csrf = match_regex(/^.+$/, 'swordfish')
     interaction
@@ -284,60 +315,32 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  def test_locks_product
-    csrf = match_regex(/^.+$/, 'swordfish')
-    interaction
-      .upon_receiving('a request for CSRF token')
-      .with_request(method: 'GET', path: '/csrf')
-      .will_respond_with(
-        status: 200,
-        body: csrf,
-        headers: { 'Content-Type' => 'text/plain' }
-      )
+  def test_pushes_to_create_job
     interaction
       .given('user is authenticated')
-      .given('product exists', { 'pname' => 'pact1' })
-      .given('CSRF token exists', { 'token' => 'swordfish' })
-      .upon_receiving('a lock request')
+      .given('user is rich')
+      .given('queue is empty')
+      .given('product exists', { 'pname' => 'pact72' })
+      .upon_receiving('a push request')
       .with_request(
-        method: 'POST',
-        path: match_regex(%r{^/lock/[a-z0-9]+$}, '/lock/pact1'),
-        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-        body: {
-          '_csrf' => csrf,
-          'owner' => match_regex(/^.+$/, 'the-owner')
+        method: 'PUT',
+        path: match_regex(%r{/push/[a-z0-9]+}, '/push/pact72'),
+        body: Factbase.new.export,
+        headers: { 'Content-Type' => 'application/octet-stream' }
+      )
+      .will_respond_with(
+        status: 200,
+        body: match_regex(/^.+$/, 'Received 4 bytes as push-5-pact72'),
+        headers: {
+          'Content-Type' => 'text/plain',
+          'X-Zerocracy-JobId' => '890'
         }
       )
-      .will_respond_with(status: 302)
     execute_pact do |server|
       baza = baza_client(server.port)
-      baza.lock('pact1', 'the-owner')
+      baza.push('pact72', Factbase.new.export, [])
     end
   end
-
-  # def test_pushes_to_create_job
-  #   interaction
-  #     .given('user is authenticated')
-  #     .given('user is rich')
-  #     .given('queue is empty')
-  #     .given('product exists', { 'pname' => 'pact72' })
-  #     .upon_receiving('a push request')
-  #     .with_request(
-  #       method: 'PUT',
-  #       path: match_regex(%r{/push/[a-z0-9]+}, '/push/pact72'),
-  #       body: Factbase.new.export,
-  #       headers: { 'Content-Type' => 'application/octet-stream' }
-  #     )
-  #     .will_respond_with(
-  #       status: 200,
-  #       body: match_regex(/^[1-9][0-9]*$/, '890'),
-  #       headers: { 'Content-Type' => 'text/plain' }
-  #     )
-  #   execute_pact do |server|
-  #     baza = baza_client(server.port)
-  #     baza.push('pact72', Factbase.new.export, [])
-  #   end
-  # end
 
   def test_finds_recent_job
     interaction
