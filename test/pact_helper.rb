@@ -36,12 +36,13 @@ module Pact
 
         def matcher_rules(matcher)
           basic = matcher.as_basic
-          rule = basic.each_with_object({}) do |(k, v), h|
-            key = k.to_s
-            next if key == 'value'
-            h['match'] = v if key == 'pact:matcher:type'
-            h[key] = v unless key == 'pact:matcher:type'
-          end
+          rule =
+            basic.each_with_object({}) do |(k, v), h|
+              key = k.to_s
+              next if key == 'value'
+              h['match'] = v if key == 'pact:matcher:type'
+              h[key] = v unless key == 'pact:matcher:type'
+            end
           JSON.dump('body' => { '$' => { 'combine' => 'AND', 'matchers' => [rule] } })
         end
 

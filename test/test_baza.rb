@@ -638,58 +638,56 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  # def test_enters_when_not_cached
-  #   csrf = match_regex(/^.+$/, 'swordfish')
-  #   interaction
-  #     .given('user is authenticated')
-  #     .given('product exists', { 'pname' => 'pact9' })
-  #     .given('valve missing', { 'badge' => 'bar', 'pname' => 'pact9' })
-  #     .upon_receiving('an enter request without cached result')
-  #     .with_request(
-  #       method: 'GET',
-  #       path: '/result',
-  #       query: { 'badge' => match_regex(/^[a-z0-9.]+$/, 'bar') }
-  #     )
-  #     .will_respond_with(
-  #       status: 204,
-  #       body: match_regex(/^.+$/, ''),
-  #       headers: { 'Content-Type' => 'text/plain' }
-  #     )
-  #   interaction
-  #     .upon_receiving('a request for CSRF token')
-  #     .with_request(method: 'GET', path: '/csrf')
-  #     .will_respond_with(
-  #       status: 200,
-  #       body: csrf,
-  #       headers: { 'Content-Type' => 'text/plain' }
-  #     )
-  #   interaction
-  #     .given('user is authenticated')
-  #     .given('product exists', { 'pname' => 'pact9' })
-  #     .given('job exists', { 'id' => 183, 'pname' => 'pact9' })
-  #     .given('valve exists', { 'job' => 183, 'pname' => 'pact9', 'badge' => 'bar' })
-  #     .given('CSRF token exists', { 'token' => 'swordfish' })
-  #     .upon_receiving('a valve creation request')
-  #     .with_request(
-  #       method: 'POST',
-  #       path: '/valves',
-  #       query: { 'job' => match_regex(/^[0-9]+$/, '183') },
-  #       headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
-  #       body: {
-  #         '_csrf' => csrf,
-  #         'badge' => match_regex(/^[a-z0-9.-]+$/, 'bar'),
-  #         'pname' => match_regex(/^[a-z0-9]+$/, 'pact9'),
-  #         'result' => match_regex(/^.+$/, 'after'),
-  #         'why' => match_regex(/^.+$/, 'no reason')
-  #       }
-  #     )
-  #     .will_respond_with(status: 302)
-  #   execute_pact do |server|
-  #     baza = baza_client(server.port)
-  #     result = baza.enter('pact9', 'bar', 'no reason', 183) { 'after' }
-  #     assert_equal('after', result)
-  #   end
-  # end
+  def test_enters_when_not_cached
+    csrf = match_regex(/^.+$/, 'swordfish')
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact9' })
+      .given('valve missing', { 'badge' => 'bar', 'pname' => 'pact9' })
+      .upon_receiving('an enter request without cached result')
+      .with_request(
+        method: 'GET',
+        path: '/result',
+        query: { 'badge' => match_regex(/^[a-z0-9.]+$/, 'bar') }
+      )
+      .will_respond_with(
+        status: 204,
+        body: ''
+      )
+    interaction
+      .upon_receiving('a request for CSRF token')
+      .with_request(method: 'GET', path: '/csrf')
+      .will_respond_with(
+        status: 200,
+        body: csrf,
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact9' })
+      .given('job exists', { 'id' => 183, 'pname' => 'pact9' })
+      .given('CSRF token exists', { 'token' => 'swordfish' })
+      .upon_receiving('a valve creation request')
+      .with_request(
+        method: 'POST',
+        path: '/valves',
+        query: { 'job' => match_regex(/^[0-9]+$/, '183') },
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+        body: {
+          '_csrf' => csrf,
+          'badge' => match_regex(/^[a-z0-9.-]+$/, 'bar'),
+          'pname' => match_regex(/^[a-z0-9]+$/, 'pact9'),
+          'result' => match_regex(/^.+$/, 'after'),
+          'why' => match_regex(/^.+$/, 'no reason')
+        }
+      )
+      .will_respond_with(status: 302)
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      result = baza.enter('pact9', 'bar', 'no reason', 183) { 'after' }
+      assert_equal('after', result)
+    end
+  end
 
   def test_finds_durable
     interaction
