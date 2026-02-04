@@ -88,6 +88,17 @@ module Pact
             ptr = FFI::MemoryPointer.new(:char, body.bytesize)
             ptr.put_bytes(0, body)
             PactFfi.with_binary_body(@pact_interaction, part, bin, ptr, body.bytesize)
+            PactFfi.with_matching_rules(
+              @pact_interaction, part,
+              JSON.dump(
+                'body' => {
+                  '$' => {
+                    'combine' => 'AND',
+                    'matchers' => [{ 'match' => 'contentType', 'value' => bin }]
+                  }
+                }
+              )
+            )
           elsif body.is_a?(String)
             PactFfi.with_body(@pact_interaction, part, type, body)
           else

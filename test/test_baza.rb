@@ -475,34 +475,6 @@ class TestBazaRb < Minitest::Test
     end
   end
 
-  # def test_saves_durable
-  #   body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
-  #   interaction
-  #     .given('user is authenticated')
-  #     .given('product exists', { 'pname' => 'pact3' })
-  #     .given('durable exists', { 'id' => 426, 'file' => 'bar.txt', 'pname' => 'pact3' })
-  #     .given('durable is locked', { 'id' => 426, 'owner' => 'previous-owner' })
-  #     .upon_receiving('a durable save request')
-  #     .with_request(
-  #       method: 'PUT',
-  #       path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/426'),
-  #       headers: { 'Content-Type' => 'application/octet-stream' }
-  #     )
-  #     .will_respond_with(
-  #       status: 200,
-  #       body: '',
-  #       headers: { 'Content-Type' => 'text/plain' }
-  #     )
-  #   execute_pact do |server|
-  #     baza = baza_client(server.port)
-  #     Dir.mktmpdir do |dir|
-  #       file = File.join(dir, 'tmp.txt')
-  #       File.binwrite(file, body)
-  #       baza.durable_save(426, file)
-  #     end
-  #   end
-  # end
-
   def test_loads_durable
     interaction
       .given('user is authenticated')
@@ -611,6 +583,38 @@ class TestBazaRb < Minitest::Test
     execute_pact do |server|
       baza = baza_client(server.port)
       baza.durable_unlock(52, 'Robert DeNiro')
+    end
+  end
+
+  def test_saves_durable
+    body = "\x00\x00 hi, dude! \x00\xFF\xFE\x12".b
+    interaction
+      .given('user is authenticated')
+      .given('product exists', { 'pname' => 'pact3' })
+      .given('durable exists', { 'id' => 426, 'file' => 'bar.txt', 'pname' => 'pact3' })
+      .given('durable is locked', { 'id' => 426, 'owner' => 'previous-owner' })
+      .upon_receiving('a durable save request')
+      .with_request(
+        method: 'PUT',
+        body:,
+        path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/426'),
+        headers: {
+          'Content-Length' => match_regex(/^[0-9]+$/, body.bytesize.to_s),
+          'Content-Type' => 'application/octet-stream'
+        }
+      )
+      .will_respond_with(
+        status: 200,
+        body: match_regex(/^.+$/, 'thanks!'),
+        headers: { 'Content-Type' => 'text/plain' }
+      )
+    execute_pact do |server|
+      baza = baza_client(server.port)
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'tmp.txt')
+        File.binwrite(file, body)
+        baza.durable_save(426, file)
+      end
     end
   end
 

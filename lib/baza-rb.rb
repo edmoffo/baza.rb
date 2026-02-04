@@ -884,7 +884,7 @@ class BazaRb
             File.binread(file)
           end
         params[:body] = slice
-        params[:headers]['Content-Length'] = slice.bytesize
+        params[:headers]['Content-Length'] = slice.bytesize.to_s
         params = zipped(params) if @compress
         ret =
           retry_it do
