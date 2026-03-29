@@ -128,8 +128,7 @@ GEM
     openssl (4.0.0)
     os (1.1.4)
     others (0.1.1)
-    pact (1.67.3)
-      jsonpath (~> 1.0)
+    pact (1.67.5)
       pact-mock_service (~> 3.0, >= 3.3.1)
       pact-support (~> 1.21, >= 1.21.2)
       rack
@@ -137,7 +136,6 @@ GEM
       rack-test (>= 0.6.3, < 3.0.0)
       rainbow (~> 3.1)
       rspec (~> 3.0)
-      string_pattern (~> 2.0)
       thor (>= 0.20, < 2.0)
       webrick (~> 1.8)
       zeitwerk (~> 2.3)
@@ -184,7 +182,7 @@ GEM
       loog (> 0)
       tago (> 0)
     racc (1.8.1)
-    rack (3.2.4)
+    rack (3.2.5)
     rack-protection (4.2.1)
       base64 (>= 0.1.0)
       logger (>= 1.6.0)
@@ -218,7 +216,7 @@ GEM
     rspec-expectations (3.13.5)
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
-    rspec-mocks (3.13.7)
+    rspec-mocks (3.13.8)
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
     rspec-support (3.13.7)
@@ -290,7 +288,7 @@ GEM
     webrick (1.9.2)
     yaml (0.4.0)
     yard (0.9.38)
-    zeitwerk (2.7.4)
+    zeitwerk (2.7.5)
 
 PLATFORMS
   arm64-darwin
