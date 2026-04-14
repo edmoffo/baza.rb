@@ -197,7 +197,7 @@ GEM
     rackup (2.3.1)
       rack (>= 3)
     rainbow (3.1.1)
-    rake (13.3.1)
+    rake (13.4.1)
     random-port (0.8.2)
       tago (~> 0.0)
     rdoc (7.1.0)
