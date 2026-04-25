@@ -44,6 +44,11 @@ class BazaRb
   # When request timeout.
   class TimedOut < StandardError; end
 
+  # When libcurl reported a transport-level failure (HTTP code 0, e.g.
+  # connection reset, partial file, SSL error). Subclasses {TimedOut} so
+  # {#retry_it} retries it as a transient failure.
+  class ConnectionFailed < TimedOut; end
+
   # Unexpected response arrived from the server.
   class BadResponse < StandardError; end
 
@@ -721,6 +726,8 @@ class BazaRb
       msg +=
         ', most likely a connection failure, timeout, or SSL error ' \
         "(r:#{ret.return_code}, m:#{ret.return_message})"
+      @loog.error(msg)
+      raise ConnectionFailed, msg
     end
     @loog.error(msg)
     raise ServerFailure, msg
