@@ -229,12 +229,13 @@ class TestBazaRbEdge < Minitest::Test
       .with(headers: { 'X-Zerocracy-Token' => '000' })
       .to_return(status: 0)
     error =
-      assert_raises(BazaRb::ServerFailure) do
+      assert_raises(BazaRb::ConnectionFailed) do
         fake_baza.send(
           :checked,
           Typhoeus.get('https://example.org:443/test', headers: { 'X-Zerocracy-Token' => '000' })
         )
       end
+    assert_kind_of(BazaRb::TimedOut, error, 'ConnectionFailed must inherit from TimedOut so retry_it retries it')
     assert_includes(error.message, 'Invalid response code #0')
     assert_includes(error.message, 'most likely a connection failure')
   end
@@ -296,6 +297,36 @@ class TestBazaRbEdge < Minitest::Test
       baza.send(:upload, baza.send(:home).append('file'), file)
       assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries')
     end
+  end
+
+  # Reproduces zerocracy/baza.rb#111: when libcurl reports a transport-level
+  # failure such as CURLE_PARTIAL_FILE (HTTP code 0, Typhoeus return_code
+  # :partial_file), BazaRb#checked must raise something that BazaRb#retry_it
+  # will retry, so an upload doesn't abort the whole pipeline on the first
+  # transient failure.
+  def test_checked_partial_file_response_is_retryable_by_retry_it
+    WebMock.disable_net_connect!
+    fake = Typhoeus::Response.new(
+      return_code: :partial_file,
+      return_message: 'Transferred a partial file',
+      code: 0,
+      total_time: 0.01
+    )
+    fake.request = Typhoeus::Request.new('https://example.org:443/file', method: :put)
+    error = assert_raises(BazaRb::ConnectionFailed) { fake_baza.send(:checked, fake) }
+    assert_kind_of(BazaRb::TimedOut, error, 'must inherit from TimedOut so retry_it retries it')
+    assert_includes(error.message, 'r:partial_file')
+    attempts = 0
+    fast = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, retries: 2, pause: 0)
+    raised =
+      assert_raises(BazaRb::ConnectionFailed) do
+        fast.send(:retry_it) do
+          attempts += 1
+          raise BazaRb::ConnectionFailed, 'simulated partial file'
+        end
+      end
+    assert_equal('simulated partial file', raised.message)
+    assert_operator(attempts, :>, 1, 'retry_it must retry on ConnectionFailed (it is a TimedOut)')
   end
 
   def test_durable_load_from_sinatra
