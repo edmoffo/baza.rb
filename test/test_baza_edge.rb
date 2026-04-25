@@ -299,6 +299,31 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Reproduces zerocracy/baza.rb#122: when an upstream proxy aborts an in-flight
+  # request (e.g. nginx returns 499 "Client Closed Request" after a load-balancer
+  # timeout), the failure is server-side from the client's point of view and
+  # should be retried, just like 5xx responses.
+  def test_upload_retries_on_499_failure
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'upload.txt')
+      File.write(file, 'test content')
+      attempts = 0
+      stub_request(:put, 'https://example.org:443/file')
+        .to_return do |_request|
+          attempts += 1
+          if attempts < 2
+            { status: 499, body: 'Client Closed Request' }
+          else
+            { status: 200, body: 'OK' }
+          end
+        end
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+      baza.send(:upload, baza.send(:home).append('file'), file)
+      assert_equal(2, attempts, 'Expected 2 HTTP calls due to 499 retries')
+    end
+  end
+
   # Reproduces zerocracy/baza.rb#111: when libcurl reports a transport-level
   # failure such as CURLE_PARTIAL_FILE (HTTP code 0, Typhoeus return_code
   # :partial_file), BazaRb#checked must raise something that BazaRb#retry_it
