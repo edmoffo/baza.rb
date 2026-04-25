@@ -298,6 +298,43 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Reproduces zerocracy/baza.rb#111: when libcurl reports
+  # CURLE_PARTIAL_FILE (Typhoeus return_code :partial_file, HTTP code 0)
+  # mid-upload, BazaRb#upload should retry the chunk rather than abort
+  # the whole pipeline on the first failure.
+  def test_upload_retries_on_partial_file_response
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'upload.txt')
+      File.write(file, 'test content')
+      attempts = 0
+      stub_request(:put, 'https://example.org:443/file').to_return(status: 200, body: 'OK')
+      original_put = Typhoeus::Request.method(:put)
+      begin
+        Typhoeus::Request.define_singleton_method(:put) do |url, params = {}|
+          attempts += 1
+          if attempts == 1
+            partial = Typhoeus::Response.new(
+              return_code: :partial_file,
+              return_message: 'Transferred a partial file',
+              code: 0,
+              total_time: 0.01
+            )
+            partial.request = Typhoeus::Request.new(url, params.merge(method: :put))
+            partial
+          else
+            original_put.call(url, params)
+          end
+        end
+        baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+        baza.send(:upload, baza.send(:home).append('file'), file)
+      ensure
+        Typhoeus::Request.singleton_class.send(:remove_method, :put)
+      end
+      assert_equal(2, attempts, 'Expected upload to retry once after a partial-file failure')
+    end
+  end
+
   def test_durable_load_from_sinatra
     WebMock.enable_net_connect!
     Dir.mktmpdir do |dir|
