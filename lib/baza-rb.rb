@@ -726,11 +726,9 @@ class BazaRb
       msg +=
         ', most likely a connection failure, timeout, or SSL error ' \
         "(r:#{ret.return_code}, m:#{ret.return_message})"
-      @loog.error(msg)
-      raise ConnectionFailed, msg
     end
     @loog.error(msg)
-    raise ServerFailure, msg
+    raise(ret.code.zero? ? ConnectionFailed : ServerFailure, msg)
   end
 
   # Make a GET request.
