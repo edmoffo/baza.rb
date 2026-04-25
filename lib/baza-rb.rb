@@ -659,7 +659,13 @@ class BazaRb
     end
   end
 
-  # Execute a block with retries on 500 status codes.
+  # Execute a block with retries on server-side failures.
+  #
+  # Retries on any HTTP status >= 499. The 499 code ("Client Closed Request")
+  # is emitted by upstream proxies such as nginx when they abort an in-flight
+  # request, typically because of a load-balancer or upstream timeout. From
+  # the client's point of view this is a transient server-side failure and
+  # should be retried just like 5xx responses.
   #
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
@@ -667,7 +673,7 @@ class BazaRb
     attempt = 0
     loop do
       ret = yield
-      if ret.code >= 500 && attempt < @retries
+      if ret.code >= 499 && attempt < @retries
         attempt += 1
         seconds = @pause * (2**attempt)
         @loog.info("Server seems to be in trouble (#{ret.code}), sleep #{seconds}s (attempt no.#{attempt})...")
