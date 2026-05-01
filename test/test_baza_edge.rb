@@ -447,6 +447,11 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_lock_raises_when_owner_is_empty
+    error = assert_raises(RuntimeError) { fake_baza.lock('pname', '') }
+    assert_equal('The "owner" of the lock may not be empty', error.message)
+  end
+
   def test_upload_switches_host_mid_chunks
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
