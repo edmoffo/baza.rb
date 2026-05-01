@@ -231,6 +231,7 @@ class BazaRb
     raise 'The "pname" of the product is nil' if pname.nil?
     raise 'The "pname" of the product may not be empty' if pname.empty?
     raise 'The "owner" of the lock is nil' if owner.nil?
+    raise 'The "owner" of the lock may not be empty' if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
       ret = post(
         home.append('lock').append(pname),
