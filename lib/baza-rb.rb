@@ -867,6 +867,14 @@ class BazaRb
 
   # Upload file via PUT, using chunked uploads for large files.
   #
+  # If the server replies with a 4xx that contains an "Expecting chunk #N"
+  # hint (e.g. `X-Zerocracy-Flash: Expecting chunk #0 (0b are here),
+  # received #25`), the upload is rewound to chunk N and retried, instead
+  # of failing the whole pipeline. This typically happens after a server
+  # reboot in the middle of a multi-chunk upload (see #109). The number of
+  # such rewinds is bounded by the same `retries` setting as transport
+  # failures.
+  #
   # @param [Iri] uri The URI to upload to
   # @param [String] file The local file path to upload from
   # @param [Hash] extra Hash of extra HTTP headers to include
@@ -883,6 +891,7 @@ class BazaRb
     total = File.size(file)
     chunk = 0
     sent = 0
+    rewinds = 0
     elapsed(@loog, level: Logger::INFO) do
       loop do
         slice =
@@ -898,19 +907,34 @@ class BazaRb
         params[:body] = slice
         params[:headers]['Content-Length'] = slice.bytesize.to_s
         params = zipped(params) if @compress
-        ret =
-          retry_it do
-            checked(
-              retry_if_server_failed do
-                retry_if_server_busy do
-                  Typhoeus::Request.put(
-                    uri.to_s,
-                    params
-                  )
+        begin
+          ret =
+            retry_it do
+              checked(
+                retry_if_server_failed do
+                  retry_if_server_busy do
+                    Typhoeus::Request.put(
+                      uri.to_s,
+                      params
+                    )
+                  end
                 end
-              end
-            )
-          end
+              )
+            end
+        rescue BazaRb::ServerFailure => e
+          match = e.message.match(/Expecting chunk #(\d+)/)
+          raise if match.nil?
+          rewinds += 1
+          raise if rewinds > @retries
+          target = match[1].to_i
+          @loog.info(
+            "Server lost upload state at chunk ##{chunk}, " \
+            "restarting from chunk ##{target} (rewind no.#{rewinds})"
+          )
+          chunk = target
+          sent = 0
+          next
+        end
         uri = stick_host(ret, uri)
         sent += params[:body].bytesize
         @loog.debug(

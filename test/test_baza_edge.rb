@@ -519,8 +519,9 @@ class TestBazaRbEdge < Minitest::Test
       )
       baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
       assert_equal(
-        %w[0 1 0 1], received,
-        'Expected the client to restart the upload from chunk #0 after the reboot'
+        %w[0 1 0 1 2], received,
+        'Expected the client to restart the upload from chunk #0 after the reboot, ' \
+        'then re-send chunks 0 and 1 plus the empty terminating chunk #2'
       )
     end
   end
