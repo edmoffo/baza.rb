@@ -485,6 +485,46 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Reproduces zerocracy/baza.rb#109: when the server is rebooted in the
+  # middle of a chunked upload, it loses the partial state and on the next
+  # PUT replies "400 Bad Request" with an "Expecting chunk #N" hint in the
+  # `X-Zerocracy-Flash` header. The client should restart the upload from
+  # the chunk the server is asking for, instead of aborting the whole job.
+  def test_upload_restarts_when_server_loses_chunk_state
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'large.txt')
+      File.write(file, 'x' * 2_000_000)
+      received = []
+      rebooted = false
+      stub_request(:put, 'https://example.org:443/file')
+        .to_return do |request|
+          chunk = request.headers['X-Zerocracy-Chunk']
+          received << chunk
+          if chunk == '1' && !rebooted
+            rebooted = true
+            {
+              status: 400,
+              headers: {
+                'X-Zerocracy-Flash' => 'Expecting chunk #0 (0b are here), received #1'
+              }
+            }
+          else
+            { status: 200, body: 'OK' }
+          end
+        end
+      baza = BazaRb.new(
+        'example.org', 443, '000',
+        loog: Loog::NULL, compress: false, retries: 2, pause: 0
+      )
+      baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
+      assert_equal(
+        %w[0 1 0 1], received,
+        'Expected the client to restart the upload from chunk #0 after the reboot'
+      )
+    end
+  end
+
   private
 
   def with_sinatra_server
