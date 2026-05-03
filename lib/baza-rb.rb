@@ -41,7 +41,7 @@ class BazaRb
   # When the server failed (503).
   class ServerFailure < StandardError; end
 
-  # When request timeout.
+  # When the request times out.
   class TimedOut < StandardError; end
 
   # When libcurl reported a transport-level failure (HTTP code 0, e.g.
@@ -52,7 +52,7 @@ class BazaRb
   # Unexpected response arrived from the server.
   class BadResponse < StandardError; end
 
-  # When server sent incorrectly compressed data.
+  # When the server sent incorrectly compressed data.
   class BadCompression < StandardError; end
 
   # Initialize a new Zerocracy API client.
@@ -845,7 +845,7 @@ class BazaRb
           end
         end
         File.open(file, 'ab') do |f|
-          msg << "added to existed #{File.size(file)} bytes"
+          msg << "added to existing #{File.size(file)} bytes"
           f.write(slice)
         end
         @loog.debug(msg.compact.join(', '))
