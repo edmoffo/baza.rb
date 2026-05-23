@@ -141,6 +141,7 @@ class BazaRb
   # @raise [ServerFailure] If the job doesn't exist or pull fails
   def pull(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
     raise 'The ID of the job must be a positive integer' unless id.positive?
     data = ''
     elapsed(@loog, level: Logger::INFO) do
@@ -160,6 +161,7 @@ class BazaRb
   # @raise [ServerFailure] If the job doesn't exist
   def finished?(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
     raise 'The ID of the job must be a positive integer' unless id.positive?
     fin = false
     elapsed(@loog, level: Logger::INFO) do
@@ -177,6 +179,7 @@ class BazaRb
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def stdout(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
     raise 'The ID of the job must be a positive integer' unless id.positive?
     stdout = ''
     elapsed(@loog, level: Logger::INFO) do
@@ -194,6 +197,7 @@ class BazaRb
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def exit_code(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
     raise 'The ID of the job must be a positive integer' unless id.positive?
     code = 0
     elapsed(@loog, level: Logger::INFO) do
@@ -211,6 +215,7 @@ class BazaRb
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def verified(id)
     raise 'The ID of the job is nil' if id.nil?
+    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
     raise 'The ID of the job must be a positive integer' unless id.positive?
     verdict = ''
     elapsed(@loog, level: Logger::INFO) do
