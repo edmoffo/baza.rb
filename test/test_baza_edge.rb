@@ -452,6 +452,29 @@ class TestBazaRbEdge < Minitest::Test
     assert_equal('The "owner" of the lock may not be empty', error.message)
   end
 
+  def test_download_rejects_malformed_content_range_total
+    WebMock.disable_net_connect!
+    ['*malformed', 'abc123', '0xff', '-5'].each do |total|
+      Dir.mktmpdir do |dir|
+        file = File.join(dir, 'out.bin')
+        host = 'example.org'
+        stub_request(:get, "https://#{host}:443/file")
+          .with(headers: { 'Range' => 'bytes=0-' })
+          .to_return(
+            status: 206,
+            body: 'first ',
+            headers: { 'Content-Range' => "bytes 0-5/#{total}" }
+          )
+        baza = BazaRb.new(host, 443, '000', loog: Loog::NULL, compress: false)
+        error =
+          assert_raises(RuntimeError) do
+            baza.send(:download, baza.send(:home).append('file'), file)
+          end
+        assert_equal("Total size is not valid (#{total.inspect})", error.message)
+      end
+    end
+  end
+
   def test_upload_switches_host_mid_chunks
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
