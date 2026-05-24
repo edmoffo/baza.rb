@@ -526,6 +526,86 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Covers the `raise if match.nil?` exit of the upload rescue block: when the
+  # server replies "400 Bad Request" with a flash that does not match the
+  # `Expecting chunk #N` hint (for example a generic `Server out of disk`),
+  # `BazaRb#upload` must re-raise the original `BazaRb::ServerFailure` on the
+  # first PUT instead of entering the rewind loop.
+  def test_upload_raises_on_non_matching_flash_without_rewinding
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'large.txt')
+      File.write(file, 'x' * 2_000_000)
+      received = []
+      stub_request(:put, 'https://example.org:443/file')
+        .to_return do |request|
+          received << request.headers['X-Zerocracy-Chunk']
+          {
+            status: 400,
+            headers: { 'X-Zerocracy-Flash' => 'Server out of disk' }
+          }
+        end
+      baza = BazaRb.new(
+        'example.org', 443, '000',
+        loog: Loog::NULL, compress: false, retries: 2, pause: 0
+      )
+      error =
+        assert_raises(BazaRb::ServerFailure) do
+          baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
+        end
+      assert_match(/Server out of disk/, error.message)
+      assert_equal(
+        %w[0], received,
+        'Expected the client to fail on the first PUT without rewinding ' \
+        'when the X-Zerocracy-Flash header does not carry an "Expecting chunk #N" hint'
+      )
+    end
+  end
+
+  # Covers the `raise if rewinds > @retries` exit of the upload rescue block:
+  # when the server keeps returning a matching `Expecting chunk #N` flash on
+  # every PUT, the rewind loop must terminate after the rewind count exceeds
+  # the `retries:` setting and re-raise the original `BazaRb::ServerFailure`,
+  # so a stuck server does not spin the client forever.
+  def test_upload_raises_when_rewinds_exceed_retries
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'large.txt')
+      File.write(file, 'x' * 2_000_000)
+      received = []
+      stub_request(:put, 'https://example.org:443/file')
+        .to_return do |request|
+          chunk = request.headers['X-Zerocracy-Chunk']
+          received << chunk
+          if chunk == '1'
+            {
+              status: 400,
+              headers: {
+                'X-Zerocracy-Flash' => 'Expecting chunk #0 (0b are here), received #1'
+              }
+            }
+          else
+            { status: 200, body: 'OK' }
+          end
+        end
+      retries = 2
+      baza = BazaRb.new(
+        'example.org', 443, '000',
+        loog: Loog::NULL, compress: false, retries: retries, pause: 0
+      )
+      error =
+        assert_raises(BazaRb::ServerFailure) do
+          baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
+        end
+      assert_match(/Expecting chunk #0/, error.message)
+      rewinds = received.count('1')
+      assert_equal(
+        retries + 1, rewinds,
+        'Expected the rewind loop to stop after rewinds exceeds the retries: setting'
+      )
+    end
+  end
+
   private
 
   def with_sinatra_server
