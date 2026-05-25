@@ -801,37 +801,39 @@ class BazaRb
     elapsed(@loog, level: Logger::INFO) do
       loop do
         slice = ''
-        ret = nil
-        retry_if_server_busy do
-          retry_if_server_failed do
-            slice = ''
-            request = Typhoeus::Request.new(
-              uri.to_s,
-              method: :get,
-              headers: headers.merge(
-                'Accept' => '*',
-                'Accept-Encoding' => 'gzip',
-                'Range' => "bytes=#{File.size(file)}-"
-              ),
-              connecttimeout: @timeout,
-              timeout: @timeout
+        ret =
+          retry_it do
+            checked(
+              retry_if_server_failed do
+                retry_if_server_busy do
+                  slice = ''
+                  request = Typhoeus::Request.new(
+                    uri.to_s,
+                    method: :get,
+                    headers: headers.merge(
+                      'Accept' => '*',
+                      'Accept-Encoding' => 'gzip',
+                      'Range' => "bytes=#{File.size(file)}-"
+                    ),
+                    connecttimeout: @timeout,
+                    timeout: @timeout
+                  )
+                  request.on_body do |data|
+                    slice += data
+                  end
+                  request.run
+                  request.response
+                end
+              end,
+              [200, 206, 204, 302]
             )
-            request.on_body do |data|
-              slice += data
-            end
-            retry_it do
-              request.run
-            end
-            ret = request.response
           end
-        end
         msg = [
           "GET #{uri.to_uri.path} #{ret.code}",
           "#{slice.bytesize} bytes",
           ('in gzip' if ret.headers['Content-Encoding'] == 'gzip'),
           ("ranged as #{ret.headers['Content-Range'].inspect}" if ret.headers['Content-Range'])
         ]
-        ret = checked(ret, [200, 206, 204, 302])
         uri = stick_host(ret, uri)
         if blanks.include?(ret.code)
           sleep(2)
