@@ -299,6 +299,24 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_post_retries_on_busy_server
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    attempts = 0
+    stub_request(:post, 'https://example.org:443/lock/simple')
+      .to_return do |_request|
+        attempts += 1
+        if attempts < 2
+          { status: 429, body: 'Too Many Requests' }
+        else
+          { status: 302, body: '' }
+        end
+      end
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+    baza.lock('simple', 'owner')
+    assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries on POST')
+  end
+
   # Reproduces zerocracy/baza.rb#122: when an upstream proxy aborts an in-flight
   # request (e.g. nginx returns 499 "Client Closed Request" after a load-balancer
   # timeout), the failure is server-side from the client's point of view and
@@ -450,6 +468,20 @@ class TestBazaRbEdge < Minitest::Test
   def test_lock_raises_when_owner_is_empty
     error = assert_raises(RuntimeError) { fake_baza.lock('pname', '') }
     assert_equal('The "owner" of the lock may not be empty', error.message)
+  end
+
+  def test_transfer_raises_when_amount_is_not_positive
+    [0.0, -1.0, -0.000001].each do |amount|
+      error = assert_raises(RuntimeError) { fake_baza.transfer('jeff', amount, 'pay') }
+      assert_equal('The "amount" must be positive', error.message)
+    end
+  end
+
+  def test_fee_raises_when_amount_is_not_positive
+    [0.0, -1.0, -0.000001].each do |amount|
+      error = assert_raises(RuntimeError) { fake_baza.fee('unknown', amount, 'pay', 42) }
+      assert_equal('The "amount" must be positive', error.message)
+    end
   end
 
   def test_upload_switches_host_mid_chunks

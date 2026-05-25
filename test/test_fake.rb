@@ -103,6 +103,20 @@ class TestFake < Minitest::Test
     end
   end
 
+  def test_durable_load_accepts_nonexistent_target_path
+    baza = BazaRb::Fake.new
+    Dir.mktmpdir do |tmp|
+      target = File.join(tmp, 'not-yet-written.bin')
+      refute_path_exists(target)
+      baza.durable_load(42, target)
+    end
+  end
+
+  def test_durable_load_raises_when_file_is_nil
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.durable_load(42, nil) }
+    assert_equal('The "file" of the durable is nil', error.message)
+  end
+
   def test_transfer
     baza = BazaRb::Fake.new
     receipt_id = baza.transfer('recipient', 1.0, 'test-payment')

@@ -49,9 +49,6 @@ class BazaRb
   # {#retry_it} retries it as a transient failure.
   class ConnectionFailed < TimedOut; end
 
-  # Unexpected response arrived from the server.
-  class BadResponse < StandardError; end
-
   # When the server sent incorrectly compressed data.
   class BadCompression < StandardError; end
 
@@ -439,6 +436,7 @@ class BazaRb
     raise 'The "recipient" is nil' if recipient.nil?
     raise 'The "amount" is nil' if amount.nil?
     raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
     raise 'The "summary" is nil' if summary.nil?
     id = nil
     body = {
@@ -470,6 +468,7 @@ class BazaRb
     raise 'The "tab" is nil' if tab.nil?
     raise 'The "amount" is nil' if amount.nil?
     raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
     raise 'The "job" is nil' if job.nil?
     raise 'The "job" must be Integer' unless job.is_a?(Integer)
     raise 'The "summary" is nil' if summary.nil?
@@ -773,13 +772,15 @@ class BazaRb
     retry_it do
       checked(
         retry_if_server_failed do
-          Typhoeus::Request.post(
-            uri.to_s,
-            body: params.merge('_csrf' => csrf).sort.to_h,
-            headers:,
-            connecttimeout: @timeout,
-            timeout: @timeout
-          )
+          retry_if_server_busy do
+            Typhoeus::Request.post(
+              uri.to_s,
+              body: params.merge('_csrf' => csrf).sort.to_h,
+              headers:,
+              connecttimeout: @timeout,
+              timeout: @timeout
+            )
+          end
         end,
         allowed
       )

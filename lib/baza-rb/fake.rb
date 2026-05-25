@@ -159,10 +159,10 @@ class BazaRb::Fake
   # Load a single durable from server to local file.
   #
   # @param [Integer] id The ID of the durable
-  # @param [String] file The file to upload
+  # @param [String] file The local file path to save the downloaded durable
   def durable_load(id, file)
     assert_id(id)
-    assert_file(file)
+    raise 'The "file" of the durable is nil' if file.nil?
   end
 
   # Lock a single durable.
