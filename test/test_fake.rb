@@ -35,6 +35,12 @@ class TestFake < Minitest::Test
     assert_equal(42, id)
   end
 
+  def test_push_accepts_chunk_size_kwarg
+    baza = BazaRb::Fake.new
+    id = baza.push('test-job', 'test-data', [], chunk_size: 1024)
+    assert_equal(42, id)
+  end
+
   def test_finished
     baza = BazaRb::Fake.new
     assert(baza.finished?(42))
@@ -86,6 +92,29 @@ class TestFake < Minitest::Test
       baza.durable_lock(42, 'test-owner')
       baza.durable_unlock(42, 'test-owner')
     end
+  end
+
+  def test_durable_save_accepts_chunk_size_kwarg
+    baza = BazaRb::Fake.new
+    Dir.mktmpdir do |tmp|
+      f = File.join(tmp, 'test.bin')
+      File.write(f, 'hello')
+      baza.durable_save(42, f, chunk_size: 1024)
+    end
+  end
+
+  def test_durable_load_accepts_nonexistent_target_path
+    baza = BazaRb::Fake.new
+    Dir.mktmpdir do |tmp|
+      target = File.join(tmp, 'not-yet-written.bin')
+      refute_path_exists(target)
+      baza.durable_load(42, target)
+    end
+  end
+
+  def test_durable_load_raises_when_file_is_nil
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.durable_load(42, nil) }
+    assert_equal('The "file" of the durable is nil', error.message)
   end
 
   def test_transfer

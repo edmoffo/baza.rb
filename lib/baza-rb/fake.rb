@@ -34,8 +34,9 @@ class BazaRb::Fake
   # @param [String] name The unique name of the job on the server
   # @param [String] data The binary data to push to the server
   # @param [Array<String>] meta List of metadata strings to attach to the job
+  # @param [Integer] chunk_size Size of each chunk in bytes (accepted for signature parity with BazaRb#push)
   # @return [Integer] Always returns 42 as the fake job ID
-  def push(name, data, meta)
+  def push(name, data, meta, chunk_size: BazaRb::DEFAULT_CHUNK_SIZE) # rubocop:disable Lint/UnusedMethodArgument
     assert_name(name)
     raise 'The data must be non-empty' if data.empty?
     raise 'The meta must be an array' unless meta.is_a?(Array)
@@ -149,7 +150,8 @@ class BazaRb::Fake
   #
   # @param [Integer] id The ID of the durable
   # @param [String] file The file to upload
-  def durable_save(id, file)
+  # @param [Integer] chunk_size Size of each chunk in bytes (accepted for signature parity with BazaRb#durable_save)
+  def durable_save(id, file, chunk_size: BazaRb::DEFAULT_CHUNK_SIZE) # rubocop:disable Lint/UnusedMethodArgument
     assert_id(id)
     assert_file(file)
   end
@@ -157,10 +159,10 @@ class BazaRb::Fake
   # Load a single durable from server to local file.
   #
   # @param [Integer] id The ID of the durable
-  # @param [String] file The file to upload
+  # @param [String] file The local file path to save the downloaded durable
   def durable_load(id, file)
     assert_id(id)
-    assert_file(file)
+    raise 'The "file" of the durable is nil' if file.nil?
   end
 
   # Lock a single durable.

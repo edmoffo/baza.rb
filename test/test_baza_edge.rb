@@ -278,6 +278,28 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Reproduces zerocracy/baza.rb#289: BazaRb#download never retries on
+  # timeout because checked() is called outside retry_it. After the fix,
+  # a libcurl operation_timedout on the first GET re-raises BazaRb::TimedOut
+  # from inside retry_it, which retries up to @retries times.
+  def test_download_retries_on_timeout
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_timeout.then
+        .to_return(status: 200, body: 'success content', headers: {})
+      baza = BazaRb.new(
+        'example.org', 443, '000',
+        loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0
+      )
+      baza.send(:download, baza.send(:home).append('file'), file)
+      assert_equal('success content', File.read(file))
+      assert_requested(:get, 'https://example.org:443/file', times: 2)
+    end
+  end
+
   def test_upload_retries_on_busy_server
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
@@ -297,6 +319,24 @@ class TestBazaRbEdge < Minitest::Test
       baza.send(:upload, baza.send(:home).append('file'), file)
       assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries')
     end
+  end
+
+  def test_post_retries_on_busy_server
+    WebMock.disable_net_connect!
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    attempts = 0
+    stub_request(:post, 'https://example.org:443/lock/simple')
+      .to_return do |_request|
+        attempts += 1
+        if attempts < 2
+          { status: 429, body: 'Too Many Requests' }
+        else
+          { status: 302, body: '' }
+        end
+      end
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
+    baza.lock('simple', 'owner')
+    assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries on POST')
   end
 
   # Reproduces zerocracy/baza.rb#122: when an upstream proxy aborts an in-flight
@@ -450,6 +490,20 @@ class TestBazaRbEdge < Minitest::Test
   def test_lock_raises_when_owner_is_empty
     error = assert_raises(RuntimeError) { fake_baza.lock('pname', '') }
     assert_equal('The "owner" of the lock may not be empty', error.message)
+  end
+
+  def test_transfer_raises_when_amount_is_not_positive
+    [0.0, -1.0, -0.000001].each do |amount|
+      error = assert_raises(RuntimeError) { fake_baza.transfer('jeff', amount, 'pay') }
+      assert_equal('The "amount" must be positive', error.message)
+    end
+  end
+
+  def test_fee_raises_when_amount_is_not_positive
+    [0.0, -1.0, -0.000001].each do |amount|
+      error = assert_raises(RuntimeError) { fake_baza.fee('unknown', amount, 'pay', 42) }
+      assert_equal('The "amount" must be positive', error.message)
+    end
   end
 
   def test_pull_raises_when_id_is_not_integer

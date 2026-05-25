@@ -49,9 +49,6 @@ class BazaRb
   # {#retry_it} retries it as a transient failure.
   class ConnectionFailed < TimedOut; end
 
-  # Unexpected response arrived from the server.
-  class BadResponse < StandardError; end
-
   # When the server sent incorrectly compressed data.
   class BadCompression < StandardError; end
 
@@ -444,6 +441,7 @@ class BazaRb
     raise 'The "recipient" is nil' if recipient.nil?
     raise 'The "amount" is nil' if amount.nil?
     raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
     raise 'The "summary" is nil' if summary.nil?
     id = nil
     body = {
@@ -475,6 +473,7 @@ class BazaRb
     raise 'The "tab" is nil' if tab.nil?
     raise 'The "amount" is nil' if amount.nil?
     raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
     raise 'The "job" is nil' if job.nil?
     raise 'The "job" must be Integer' unless job.is_a?(Integer)
     raise 'The "summary" is nil' if summary.nil?
@@ -778,13 +777,15 @@ class BazaRb
     retry_it do
       checked(
         retry_if_server_failed do
-          Typhoeus::Request.post(
-            uri.to_s,
-            body: params.merge('_csrf' => csrf).sort.to_h,
-            headers:,
-            connecttimeout: @timeout,
-            timeout: @timeout
-          )
+          retry_if_server_busy do
+            Typhoeus::Request.post(
+              uri.to_s,
+              body: params.merge('_csrf' => csrf).sort.to_h,
+              headers:,
+              connecttimeout: @timeout,
+              timeout: @timeout
+            )
+          end
         end,
         allowed
       )
@@ -805,37 +806,39 @@ class BazaRb
     elapsed(@loog, level: Logger::INFO) do
       loop do
         slice = ''
-        ret = nil
-        retry_if_server_busy do
-          retry_if_server_failed do
-            slice = ''
-            request = Typhoeus::Request.new(
-              uri.to_s,
-              method: :get,
-              headers: headers.merge(
-                'Accept' => '*',
-                'Accept-Encoding' => 'gzip',
-                'Range' => "bytes=#{File.size(file)}-"
-              ),
-              connecttimeout: @timeout,
-              timeout: @timeout
+        ret =
+          retry_it do
+            checked(
+              retry_if_server_failed do
+                retry_if_server_busy do
+                  slice = ''
+                  request = Typhoeus::Request.new(
+                    uri.to_s,
+                    method: :get,
+                    headers: headers.merge(
+                      'Accept' => '*',
+                      'Accept-Encoding' => 'gzip',
+                      'Range' => "bytes=#{File.size(file)}-"
+                    ),
+                    connecttimeout: @timeout,
+                    timeout: @timeout
+                  )
+                  request.on_body do |data|
+                    slice += data
+                  end
+                  request.run
+                  request.response
+                end
+              end,
+              [200, 206, 204, 302]
             )
-            request.on_body do |data|
-              slice += data
-            end
-            retry_it do
-              request.run
-            end
-            ret = request.response
           end
-        end
         msg = [
           "GET #{uri.to_uri.path} #{ret.code}",
           "#{slice.bytesize} bytes",
           ('in gzip' if ret.headers['Content-Encoding'] == 'gzip'),
           ("ranged as #{ret.headers['Content-Range'].inspect}" if ret.headers['Content-Range'])
         ]
-        ret = checked(ret, [200, 206, 204, 302])
         uri = stick_host(ret, uri)
         if blanks.include?(ret.code)
           sleep(2)
