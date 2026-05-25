@@ -154,6 +154,18 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_durable_load_reports_invalid_content_range_without_hyphen
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'loaded.txt')
+      stub_request(:get, 'https://example.org:443/durables/42')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x', headers: { 'Content-Range' => 'bytes 0/10' })
+      error = assert_raises(RuntimeError) { fake_baza.durable_load(42, file) }
+      assert_includes(error.message, 'Range is not valid ("0")')
+    end
+  end
+
   def test_durable_load_with_broken_compression
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
