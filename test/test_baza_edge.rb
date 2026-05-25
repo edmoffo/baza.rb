@@ -506,6 +506,31 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_pull_raises_when_id_is_not_integer
+    error = assert_raises(RuntimeError) { fake_baza.pull(42.5) }
+    assert_equal('The ID of the job must be an Integer', error.message)
+  end
+
+  def test_finished_raises_when_id_is_not_integer
+    error = assert_raises(RuntimeError) { fake_baza.finished?(42.5) }
+    assert_equal('The ID of the job must be an Integer', error.message)
+  end
+
+  def test_stdout_raises_when_id_is_not_integer
+    error = assert_raises(RuntimeError) { fake_baza.stdout(42.5) }
+    assert_equal('The ID of the job must be an Integer', error.message)
+  end
+
+  def test_exit_code_raises_when_id_is_not_integer
+    error = assert_raises(RuntimeError) { fake_baza.exit_code(42.5) }
+    assert_equal('The ID of the job must be an Integer', error.message)
+  end
+
+  def test_verified_raises_when_id_is_not_integer
+    error = assert_raises(RuntimeError) { fake_baza.verified(42.5) }
+    assert_equal('The ID of the job must be an Integer', error.message)
+  end
+
   def test_upload_switches_host_mid_chunks
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
