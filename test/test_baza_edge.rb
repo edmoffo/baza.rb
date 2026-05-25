@@ -300,6 +300,21 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_download_rejects_malformed_total_size
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x', headers: { 'Content-Range' => 'bytes 0-0/*malformed' })
+      error =
+        assert_raises(RuntimeError) do
+          fake_baza.send(:download, fake_baza.send(:home).append('file'), file)
+        end
+      assert_includes(error.message, 'Total size is not valid ("*malformed")')
+    end
+  end
+
   def test_upload_retries_on_busy_server
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
