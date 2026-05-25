@@ -49,9 +49,6 @@ class BazaRb
   # {#retry_it} retries it as a transient failure.
   class ConnectionFailed < TimedOut; end
 
-  # Unexpected response arrived from the server.
-  class BadResponse < StandardError; end
-
   # When the server sent incorrectly compressed data.
   class BadCompression < StandardError; end
 
