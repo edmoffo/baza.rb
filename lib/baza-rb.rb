@@ -436,6 +436,7 @@ class BazaRb
     raise 'The "recipient" is nil' if recipient.nil?
     raise 'The "amount" is nil' if amount.nil?
     raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
     raise 'The "summary" is nil' if summary.nil?
     id = nil
     body = {
@@ -467,6 +468,7 @@ class BazaRb
     raise 'The "tab" is nil' if tab.nil?
     raise 'The "amount" is nil' if amount.nil?
     raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
     raise 'The "job" is nil' if job.nil?
     raise 'The "job" must be Integer' unless job.is_a?(Integer)
     raise 'The "summary" is nil' if summary.nil?

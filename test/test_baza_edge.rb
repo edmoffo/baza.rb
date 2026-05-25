@@ -470,6 +470,20 @@ class TestBazaRbEdge < Minitest::Test
     assert_equal('The "owner" of the lock may not be empty', error.message)
   end
 
+  def test_transfer_raises_when_amount_is_not_positive
+    [0.0, -1.0, -0.000001].each do |amount|
+      error = assert_raises(RuntimeError) { fake_baza.transfer('jeff', amount, 'pay') }
+      assert_equal('The "amount" must be positive', error.message)
+    end
+  end
+
+  def test_fee_raises_when_amount_is_not_positive
+    [0.0, -1.0, -0.000001].each do |amount|
+      error = assert_raises(RuntimeError) { fake_baza.fee('unknown', amount, 'pay', 42) }
+      assert_equal('The "amount" must be positive', error.message)
+    end
+  end
+
   def test_upload_switches_host_mid_chunks
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
