@@ -773,13 +773,15 @@ class BazaRb
     retry_it do
       checked(
         retry_if_server_failed do
-          Typhoeus::Request.post(
-            uri.to_s,
-            body: params.merge('_csrf' => csrf).sort.to_h,
-            headers:,
-            connecttimeout: @timeout,
-            timeout: @timeout
-          )
+          retry_if_server_busy do
+            Typhoeus::Request.post(
+              uri.to_s,
+              body: params.merge('_csrf' => csrf).sort.to_h,
+              headers:,
+              connecttimeout: @timeout,
+              timeout: @timeout
+            )
+          end
         end,
         allowed
       )
