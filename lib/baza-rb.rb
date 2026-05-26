@@ -860,7 +860,7 @@ class BazaRb
         break if ret.code == 200
         _, v = ret.headers['Content-Range'].split
         range, total = v.split('/')
-        raise "Total size is not valid (#{total.inspect})" unless total.match?(/^\*|[0-9]+$/)
+        raise "Total size is not valid (#{total.inspect})" unless total.match?(/\A(?:\*|[0-9]+)\z/)
         _b, e = range.split('-', 2)
         raise "Range is not valid (#{range.inspect})" if e.nil?
         raise "Range is not valid (#{range.inspect})" unless e.match?(/^[0-9]+$/)
