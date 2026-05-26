@@ -213,8 +213,9 @@ class BazaRb::Fake
   # @return [Integer] Always returns 42 as the fake receipt ID
   def fee(tab, amount, summary, job)
     raise 'The "tab" is nil' if tab.nil?
-    raise "The amount #{amount} must be a Float" unless amount.is_a?(Float)
-    raise "The amount #{amount} must be positive" unless amount.positive?
+    raise 'The "amount" is nil' if amount.nil?
+    raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
     raise 'The "job" is nil' if job.nil?
     raise 'The "job" must be Integer' unless job.is_a?(Integer)
     raise 'The "summary" is nil' if summary.nil?
