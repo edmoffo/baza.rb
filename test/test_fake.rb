@@ -32,6 +32,13 @@ class TestFake < Minitest::Test
     assert_equal(42, BazaRb::Fake.new.push('test-job', 'test-data', [], chunk_size: 1024))
   end
 
+  def test_push_raises_when_data_is_nil
+    assert_equal(
+      'The "data" of the job is nil',
+      assert_raises(RuntimeError) { BazaRb::Fake.new.push('test-job', nil, []) }.message
+    )
+  end
+
   def test_finished
     assert(BazaRb::Fake.new.finished?(42))
   end
