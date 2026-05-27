@@ -197,7 +197,7 @@ class BazaRb::Fake
   # @param [String] summary The description/reason for the payment
   # @return [Integer] Always returns 42 as the fake receipt ID
   def transfer(recipient, amount, summary, *)
-    raise "The recipient #{recipient.inspect} is not valid" unless recipient.match?(/^[a-zA-Z0-9-]+$/)
+    raise "The recipient #{recipient.inspect} is not valid" unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
     raise "The amount #{amount} must be a Float" unless amount.is_a?(Float)
     raise "The amount #{amount} must be positive" unless amount.positive?
     raise "The summary #{summary.inspect} is empty" if summary.empty?
@@ -231,7 +231,7 @@ class BazaRb::Fake
   # @return [String] Always executes and returns the block's result
   def enter(name, badge, why, job)
     assert_name(name)
-    raise "The badge '#{badge}' is not valid" unless badge.match?(/^[a-zA-Z0-9_-]+$/)
+    raise "The badge '#{badge}' is not valid" unless badge.match?(/\A[a-zA-Z0-9_-]+\z/)
     raise 'The reason cannot be empty' if why.empty?
     assert_id(job) unless job.nil?
     yield
@@ -247,7 +247,7 @@ class BazaRb::Fake
   private
 
   def assert_name(name)
-    raise "The name #{name.inspect} is not valid" unless name.match?(/^[a-z0-9-]+$/)
+    raise "The name #{name.inspect} is not valid" unless name.match?(/\A[a-z0-9-]+\z/)
     raise "The name #{name.inspect} is too long" if name.length > 32
   end
 
@@ -257,7 +257,7 @@ class BazaRb::Fake
   end
 
   def assert_owner(owner)
-    raise "The owner #{owner.inspect} is not valid" unless owner.match?(/^[a-zA-Z0-9-]+$/)
+    raise "The owner #{owner.inspect} is not valid" unless owner.match?(/\A[a-zA-Z0-9-]+\z/)
     raise "The owner #{owner.inspect} is too long" if owner.length > 64
   end
 

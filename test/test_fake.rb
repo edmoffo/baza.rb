@@ -123,6 +123,14 @@ class TestFake < Minitest::Test
     assert_equal(42, receipt_id)
   end
 
+  def test_transfer_rejects_multiline_recipient
+    err =
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.transfer("recipient\nbad value", 1.0, 'test-payment')
+      end
+    assert_equal('The recipient "recipient\nbad value" is not valid', err.message)
+  end
+
   def test_pays_fee
     baza = BazaRb::Fake.new
     receipt_id = baza.fee('unknown', 43.0, 'for fun', 44)
@@ -136,6 +144,28 @@ class TestFake < Minitest::Test
         'test-result'
       end
     assert_equal('test-result', result)
+  end
+
+  def test_enter_rejects_multiline_name_and_badge
+    baza = BazaRb::Fake.new
+    name =
+      assert_raises(RuntimeError) do
+        baza.enter("test-job\nBAD", 'test-badge', 'test-reason', 42) { 'ignored' }
+      end
+    badge =
+      assert_raises(RuntimeError) do
+        baza.enter('test-job', "test-badge\nBAD", 'test-reason', 42) { 'ignored' }
+      end
+    assert_equal('The name "test-job\nBAD" is not valid', name.message)
+    assert_equal("The badge 'test-badge\nBAD' is not valid", badge.message)
+  end
+
+  def test_durable_lock_rejects_multiline_owner
+    err =
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.durable_lock(42, "test-owner\nbad value")
+      end
+    assert_equal('The owner "test-owner\nbad value" is not valid', err.message)
   end
 
   def test_csrf
