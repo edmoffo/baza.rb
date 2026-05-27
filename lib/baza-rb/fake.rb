@@ -37,9 +37,9 @@ class BazaRb::Fake
   # @param [Integer] chunk_size Size of each chunk in bytes (accepted for signature parity with BazaRb#push)
   # @return [Integer] Always returns 42 as the fake job ID
   def push(name, data, meta, chunk_size: BazaRb::DEFAULT_CHUNK_SIZE) # rubocop:disable Lint/UnusedMethodArgument
-    assert_name(name)
-    raise 'The data must be non-empty' if data.empty?
-    raise 'The meta must be an array' unless meta.is_a?(Array)
+    checkname(name)
+    raise(RuntimeError, 'The data must be non-empty') if data.empty?
+    raise(RuntimeError, 'The meta must be an array') unless meta.is_a?(Array)
     42
   end
 
@@ -48,7 +48,7 @@ class BazaRb::Fake
   # @param [Integer] id The ID of the job on the server
   # @return [String] Returns an empty factbase export for testing
   def pull(id)
-    assert_id(id)
+    checkid(id)
     Factbase.new.export
   end
 
@@ -57,7 +57,7 @@ class BazaRb::Fake
   # @param [Integer] id The ID of the job on the server
   # @return [Boolean] Always returns TRUE for testing
   def finished?(id)
-    assert_id(id)
+    checkid(id)
     true
   end
 
@@ -66,7 +66,7 @@ class BazaRb::Fake
   # @param [Integer] id The ID of the job on the server
   # @return [String] The stdout, as a text
   def stdout(id)
-    assert_id(id)
+    checkid(id)
     'Fake stdout output'
   end
 
@@ -75,7 +75,7 @@ class BazaRb::Fake
   # @param [Integer] id The ID of the job on the server
   # @return [Integer] The exit code
   def exit_code(id)
-    assert_id(id)
+    checkid(id)
     0
   end
 
@@ -84,7 +84,7 @@ class BazaRb::Fake
   # @param [Integer] id The ID of the job on the server
   # @return [String] The verdict
   def verified(id)
-    assert_id(id)
+    checkid(id)
     'fake-verdict'
   end
 
@@ -93,8 +93,8 @@ class BazaRb::Fake
   # @param [String] name The name of the job on the server
   # @param [String] owner The owner of the lock (any string)
   def lock(name, owner)
-    assert_name(name)
-    assert_owner(owner)
+    checkname(name)
+    checkowner(owner)
   end
 
   # Unlock the name.
@@ -102,8 +102,8 @@ class BazaRb::Fake
   # @param [String] name The name of the job on the server
   # @param [String] owner The owner of the lock (any string)
   def unlock(name, owner)
-    assert_name(name)
-    assert_owner(owner)
+    checkname(name)
+    checkowner(owner)
   end
 
   # Get the ID of the job by the name.
@@ -111,7 +111,7 @@ class BazaRb::Fake
   # @param [String] name The name of the job on the server
   # @return [Integer] The ID of the job on the server
   def recent(name)
-    assert_name(name)
+    checkname(name)
     42
   end
 
@@ -120,7 +120,7 @@ class BazaRb::Fake
   # @param [String] name The name of the job on the server
   # @return [Boolean] TRUE if such name exists
   def name_exists?(name)
-    assert_name(name)
+    checkname(name)
     true
   end
 
@@ -130,8 +130,8 @@ class BazaRb::Fake
   # @param [String] file The path to the file to upload
   # @return [Integer] Always returns 42 as the fake durable ID
   def durable_find(pname, file)
-    assert_name(pname)
-    assert_file(file)
+    checkname(pname)
+    checkfile(file)
     42
   end
 
@@ -141,8 +141,8 @@ class BazaRb::Fake
   # @param [String] file The path to the file to upload
   # @return [Integer] Always returns 42 as the fake durable ID
   def durable_place(pname, file)
-    assert_name(pname)
-    assert_file(file)
+    checkname(pname)
+    checkfile(file)
     42
   end
 
@@ -152,8 +152,8 @@ class BazaRb::Fake
   # @param [String] file The file to upload
   # @param [Integer] chunk_size Size of each chunk in bytes (accepted for signature parity with BazaRb#durable_save)
   def durable_save(id, file, chunk_size: BazaRb::DEFAULT_CHUNK_SIZE) # rubocop:disable Lint/UnusedMethodArgument
-    assert_id(id)
-    assert_file(file)
+    checkid(id)
+    checkfile(file)
   end
 
   # Load a single durable from server to local file.
@@ -161,8 +161,8 @@ class BazaRb::Fake
   # @param [Integer] id The ID of the durable
   # @param [String] file The local file path to save the downloaded durable
   def durable_load(id, file)
-    assert_id(id)
-    raise 'The "file" of the durable is nil' if file.nil?
+    checkid(id)
+    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
   end
 
   # Lock a single durable.
@@ -170,8 +170,8 @@ class BazaRb::Fake
   # @param [Integer] id The ID of the durable
   # @param [String] owner The owner of the lock
   def durable_lock(id, owner)
-    assert_id(id)
-    assert_owner(owner)
+    checkid(id)
+    checkowner(owner)
   end
 
   # Unlock a single durable.
@@ -179,8 +179,8 @@ class BazaRb::Fake
   # @param [Integer] id The ID of the durable
   # @param [String] owner The owner of the lock
   def durable_unlock(id, owner)
-    assert_id(id)
-    assert_owner(owner)
+    checkid(id)
+    checkowner(owner)
   end
 
   # Get current balance of the authenticated user.
@@ -198,14 +198,14 @@ class BazaRb::Fake
   # @param [Integer] job Optional job ID to associate with this transfer
   # @return [Integer] Always returns 42 as the fake receipt ID
   def transfer(recipient, amount, summary, job: nil)
-    raise 'The "recipient" is nil' if recipient.nil?
-    raise "The recipient #{recipient.inspect} is not valid" unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
-    raise 'The "amount" is nil' if amount.nil?
-    raise 'The "amount" must be Float' unless amount.is_a?(Float)
-    raise 'The "amount" must be positive' unless amount.positive?
-    raise 'The "summary" is nil' if summary.nil?
-    raise "The summary #{summary.inspect} is empty" if summary.empty?
-    assert_id(job) unless job.nil?
+    raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
+    raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
+    raise(RuntimeError, 'The "amount" is nil') if amount.nil?
+    raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
+    raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
+    raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
+    checkid(job) unless job.nil?
     42
   end
 
@@ -217,13 +217,13 @@ class BazaRb::Fake
   # @param [Integer] job The ID of the job this fee is for
   # @return [Integer] Always returns 42 as the fake receipt ID
   def fee(tab, amount, summary, job)
-    raise 'The "tab" is nil' if tab.nil?
-    raise 'The "amount" is nil' if amount.nil?
-    raise 'The "amount" must be Float' unless amount.is_a?(Float)
-    raise 'The "amount" must be positive' unless amount.positive?
-    raise 'The "job" is nil' if job.nil?
-    raise 'The "job" must be Integer' unless job.is_a?(Integer)
-    raise 'The "summary" is nil' if summary.nil?
+    raise(RuntimeError, 'The "tab" is nil') if tab.nil?
+    raise(RuntimeError, 'The "amount" is nil') if amount.nil?
+    raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
+    raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
+    raise(RuntimeError, 'The "job" is nil') if job.nil?
+    raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
+    raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     42
   end
 
@@ -236,10 +236,10 @@ class BazaRb::Fake
   # @yield Block that computes the result
   # @return [String] Always executes and returns the block's result
   def enter(name, badge, why, job)
-    assert_name(name)
-    raise "The badge '#{badge}' is not valid" unless badge.match?(/\A[a-zA-Z0-9_-]+\z/)
-    raise 'The reason cannot be empty' if why.empty?
-    assert_id(job) unless job.nil?
+    checkname(name)
+    raise(RuntimeError, "The badge '#{badge}' is not valid") unless badge.match?(/\A[a-zA-Z0-9_-]+\z/)
+    raise(RuntimeError, 'The reason cannot be empty') if why.empty?
+    checkid(job) unless job.nil?
     yield
   end
 
@@ -252,23 +252,23 @@ class BazaRb::Fake
 
   private
 
-  def assert_name(name)
-    raise "The name #{name.inspect} is not valid" unless name.match?(/\A[a-z0-9-]+\z/)
-    raise "The name #{name.inspect} is too long" if name.length > 32
+  def checkname(name)
+    raise(RuntimeError, "The name #{name.inspect} is not valid") unless name.match?(/\A[a-z0-9-]+\z/)
+    raise(RuntimeError, "The name #{name.inspect} is too long") if name.length > 32
   end
 
-  def assert_id(id)
-    raise 'The ID must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID must be positive' unless id.positive?
+  def checkid(id)
+    raise(RuntimeError, 'The ID must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID must be positive') unless id.positive?
   end
 
-  def assert_owner(owner)
-    raise "The owner #{owner.inspect} is not valid" unless owner.match?(/\A[a-zA-Z0-9-]+\z/)
-    raise "The owner #{owner.inspect} is too long" if owner.length > 64
+  def checkowner(owner)
+    raise(RuntimeError, "The owner #{owner.inspect} is not valid") unless owner.match?(/\A[a-zA-Z0-9-]+\z/)
+    raise(RuntimeError, "The owner #{owner.inspect} is too long") if owner.length > 64
   end
 
-  def assert_file(file)
-    raise 'The file must exist' unless File.exist?(file)
-    raise 'The file must be non-empty' unless File.size(file).positive?
+  def checkfile(file)
+    raise(RuntimeError, 'The file must exist') unless File.exist?(file)
+    raise(RuntimeError, 'The file must be non-empty') unless File.size(file).positive?
   end
 end

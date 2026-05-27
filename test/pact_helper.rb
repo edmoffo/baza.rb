@@ -35,15 +35,21 @@ module Pact
         end
 
         def matcher_rules(matcher)
-          basic = matcher.as_basic
-          rule =
-            basic.each_with_object({}) do |(k, v), h|
-              key = k.to_s
-              next if key == 'value'
-              h['match'] = v if key == 'pact:matcher:type'
-              h[key] = v unless key == 'pact:matcher:type'
-            end
-          JSON.dump('body' => { '$' => { 'combine' => 'AND', 'matchers' => [rule] } })
+          JSON.dump(
+            'body' => {
+              '$' => {
+                'combine' => 'AND',
+                'matchers' => [
+                  matcher.as_basic.each_with_object({}) do |(k, v), h|
+                    key = k.to_s
+                    next if key == 'value'
+                    h['match'] = v if key == 'pact:matcher:type'
+                    h[key] = v unless key == 'pact:matcher:type'
+                  end
+                ]
+              }
+            }
+          )
         end
 
         def extract_value(val)
@@ -53,34 +59,11 @@ module Pact
 
         def format_form(hash)
           InteractionContents.basic(hash).map do |key, val|
-            v = extract_value(val)
-            "#{key}=#{v}"
+            "#{key}=#{extract_value(val)}"
           end.join('&')
         end
 
-        public
-
-        def with_request(method: nil, path: nil, query: {}, headers: {}, body: nil)
-          part = PactFfi::FfiInteractionPart['INTERACTION_PART_REQUEST']
-          PactFfi.with_request(@pact_interaction, method.to_s, format_value(path))
-          if query.is_a?(Array)
-            idx = Hash.new(0)
-            query.each do |item|
-              InteractionContents.basic(item).each_pair do |key, val|
-                PactFfi.with_query_parameter_v2(@pact_interaction, key.to_s, idx[key], format_value(val))
-                idx[key] += 1
-              end
-            end
-          else
-            InteractionContents.basic(query).each_pair do |key, val|
-              PactFfi.with_query_parameter_v2(@pact_interaction, key.to_s, 0, format_value(val))
-            end
-          end
-          InteractionContents.basic(headers).each_pair do |key, val|
-            PactFfi.with_header_v2(@pact_interaction, part, key.to_s, 0, format_value(val))
-          end
-          return self unless body
-          type = headers['Content-Type'] || headers['content-type'] || 'application/json'
+        def write_body(part, headers, body, type)
           if type.include?('x-www-form-urlencoded')
             PactFfi.with_body(@pact_interaction, part, type, format_form(body))
           elsif body.is_a?(String) && body.encoding == Encoding::ASCII_8BIT
@@ -107,6 +90,31 @@ module Pact
               format_value(InteractionContents.basic(body))
             )
           end
+        end
+
+        public
+
+        def with_request(method: nil, path: nil, query: {}, headers: {}, body: nil)
+          part = PactFfi::FfiInteractionPart['INTERACTION_PART_REQUEST']
+          PactFfi.with_request(@pact_interaction, method.to_s, format_value(path))
+          if query.is_a?(Array)
+            idx = Hash.new(0)
+            query.each do |item|
+              InteractionContents.basic(item).each_pair do |key, val|
+                PactFfi.with_query_parameter_v2(@pact_interaction, key.to_s, idx[key], format_value(val))
+                idx[key] += 1
+              end
+            end
+          else
+            InteractionContents.basic(query).each_pair do |key, val|
+              PactFfi.with_query_parameter_v2(@pact_interaction, key.to_s, 0, format_value(val))
+            end
+          end
+          InteractionContents.basic(headers).each_pair do |key, val|
+            PactFfi.with_header_v2(@pact_interaction, part, key.to_s, 0, format_value(val))
+          end
+          return self unless body
+          write_body(part, headers, body, headers['Content-Type'] || headers['content-type'] || 'application/json')
           self
         end
 
@@ -178,7 +186,7 @@ module PactV2Minitest
     if server&.matched?
       server.write_pacts!(pact_config.pact_dir)
     elsif server
-      raise "Pact mismatch: #{server.mismatches}"
+      raise(RuntimeError, "Pact mismatch: #{server.mismatches}")
     end
     server&.cleanup
     pact_config.reset_pact

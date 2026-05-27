@@ -5,9 +5,9 @@
 
 require 'os'
 require 'qbash'
-require 'rubygems'
 require 'rake'
 require 'rake/clean'
+require 'rubygems'
 require 'shellwords'
 
 def name
@@ -34,10 +34,7 @@ desc 'Run them via Ruby, one by one'
 task :picks do
   next if OS.windows?
   Dir['lib/**/*.rb'].each do |f|
-    qbash(
-      "bundle exec ruby #{Shellwords.escape(f)} -- --offline",
-      stdout: $stdout, env: { 'RACK_ENV' => 'picks' }
-    )
+    qbash("bundle exec ruby #{Shellwords.escape(f)} -- --offline", stdout: $stdout, env: { 'RACK_ENV' => 'picks' })
   end
 end
 

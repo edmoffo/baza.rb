@@ -24,16 +24,12 @@ require_relative '../lib/baza-rb'
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class TestBazaLive < Minitest::Test
-  # The token to use for testing, in Zerocracy.com:
   TOKEN = 'ZRCY-00000000-0000-0000-0000-000000000000'
 
-  # The host of the production platform:
   HOST = 'api.zerocracy.com'
 
-  # The HTTPS port to use:
   PORT = 443
 
-  # Live agent:
   LIVE = BazaRb.new(HOST, PORT, TOKEN, loog: Loog::NULL)
 
   def test_live_full_cycle
@@ -47,15 +43,12 @@ class TestBazaLive < Minitest::Test
     assert(LIVE.name_exists?(n))
     assert_predicate(LIVE.recent(n), :positive?)
     id = LIVE.recent(n)
-    started = Time.now
-    done =
+    assert(
       wait_for(2 * 60) do
         sleep(5)
         LIVE.finished?(id)
-      end
-    assert(
-      done,
-      "Job ##{id} (#{n.inspect}) did not finish in #{(Time.now - started).round}s at #{HOST}, " \
+      end,
+      "Job ##{id} (#{n.inspect}) did not finish in #{(Time.now - Time.now).round}s at #{HOST}, " \
       'which most probably means it got stuck on the Zerocracy platform and never completed'
     )
     refute_nil(LIVE.pull(id))
@@ -93,8 +86,7 @@ class TestBazaLive < Minitest::Test
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     fb.insert
-    baza = BazaRb.new(HOST, PORT, TOKEN, compress: false)
-    baza.push(fake_name, fb.export, [])
+    BazaRb.new(HOST, PORT, TOKEN, compress: false).push(fake_name, fb.export, [])
   end
 
   def test_live_durable_lock_unlock
@@ -142,6 +134,6 @@ class TestBazaLive < Minitest::Test
   end
 
   def we_are_online?
-    $we_are_online ||= !ARGV.include?('--offline') && online?
+    @we_are_online ||= !ARGV.include?('--offline') && online?
   end
 end

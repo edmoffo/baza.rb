@@ -20,22 +20,22 @@ class TestBazaRb < Minitest::Test
   Minitest.after_run do
     WebMock.allow_net_connect!
     pact = File.join(__dir__, '..', 'BazaRb-Zerocracy.json')
-    raise "Pact file #{pact} not found" unless File.exist?(pact)
+    raise RuntimeError, "Pact file #{pact} not found" unless File.exist?(pact)
     json = JSON.parse(File.read(pact))
-    raise 'Pact consumer name missing' unless json.dig('consumer', 'name')
-    raise 'Pact provider name missing' unless json.dig('provider', 'name')
-    raise 'Pact interactions missing' unless json['interactions'].is_a?(Array)
-    raise 'Pact interactions empty' if json['interactions'].empty?
+    raise RuntimeError, 'Pact consumer name missing' unless json.dig('consumer', 'name')
+    raise RuntimeError, 'Pact provider name missing' unless json.dig('provider', 'name')
+    raise RuntimeError, 'Pact interactions missing' unless json['interactions'].is_a?(Array)
+    raise RuntimeError, 'Pact interactions empty' if json['interactions'].empty?
     json['interactions'].each do |int|
-      raise "Interaction missing description: #{int}" unless int['description']
-      raise "Interaction missing request: #{int['description']}" unless int['request']
-      raise "Request missing method: #{int['description']}" unless int.dig('request', 'method')
-      raise "Request missing path: #{int['description']}" unless int.dig('request', 'path')
-      raise "Interaction missing response: #{int['description']}" unless int['response']
-      raise "Response missing status: #{int['description']}" unless int.dig('response', 'status')
+      raise RuntimeError, "Interaction missing description: #{int}" unless int['description']
+      raise RuntimeError, "Interaction missing request: #{int['description']}" unless int['request']
+      raise RuntimeError, "Request missing method: #{int['description']}" unless int.dig('request', 'method')
+      raise RuntimeError, "Request missing path: #{int['description']}" unless int.dig('request', 'path')
+      raise RuntimeError, "Interaction missing response: #{int['description']}" unless int['response']
+      raise RuntimeError, "Response missing status: #{int['description']}" unless int.dig('response', 'status')
     end
-    raise 'Pact metadata missing' unless json['metadata']
-    raise 'Pact specification version missing' unless json.dig('metadata', 'pactSpecification', 'version')
+    raise RuntimeError, 'Pact metadata missing' unless json['metadata']
+    raise RuntimeError, 'Pact specification version missing' unless json.dig('metadata', 'pactSpecification', 'version')
     answers = %w[yes done]
     json['interactions'].each do |int|
       raw = int.dig('response', 'body')
@@ -43,14 +43,10 @@ class TestBazaRb < Minitest::Test
       next if body.nil? || body.empty?
       next if answers.include?(body)
       rules = int.dig('response', 'matchingRules', 'body') || int.dig('response', 'matchingRules')
-      raise "Response body '#{body}' in '#{int['description']}' looks dynamic but has no matchingRules" if
+      raise RuntimeError, "Response body '#{body}' in '#{int['description']}' looks dynamic but has no matchingRules" if
         rules.nil? && body.match?(/^[0-9]+(\.[0-9]+)?$/)
     end
-    json['metadata']['client'] = {
-      'name' => 'BazaRb',
-      'version' => BazaRb::VERSION,
-      'date' => Time.now.utc.iso8601
-    }
+    json['metadata']['client'] = { 'name' => 'BazaRb', 'version' => BazaRb::VERSION, 'date' => Time.now.utc.iso8601 }
     File.write(pact, JSON.pretty_generate(json))
   end
 
@@ -73,8 +69,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert_equal('jeff', baza.whoami)
+      assert_equal('jeff', baza_client(server.port).whoami)
     end
   end
 
@@ -90,8 +85,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert_in_delta(42.33, baza.balance)
+      assert_in_delta(42.33, baza_client(server.port).balance)
     end
   end
 
@@ -125,9 +119,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '42') }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      id = baza.transfer('jeff', 42.50, 'for fun')
-      assert_equal(42, id)
+      assert_equal(42, baza_client(server.port).transfer('jeff', 42.50, 'for fun'))
     end
   end
 
@@ -164,9 +156,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '8789') }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      id = baza.transfer('jeff', 42.50, 'for fun', job: 555)
-      assert_equal(8789, id)
+      assert_equal(8789, baza_client(server.port).transfer('jeff', 42.50, 'for fun', job: 555))
     end
   end
 
@@ -204,9 +194,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '9898') }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      receipt = baza.fee('unknown', 42.77, 'the summary', 776)
-      assert_equal(9898, receipt)
+      assert_equal(9898, baza_client(server.port).fee('unknown', 42.77, 'the summary', 776))
     end
   end
 
@@ -226,8 +214,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert(baza.finished?(542))
+      assert(baza_client(server.port).finished?(542))
     end
   end
 
@@ -248,8 +235,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert(baza.verified(513))
+      assert(baza_client(server.port).verified(513))
     end
   end
 
@@ -279,8 +265,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(status: 302)
     execute_pact do |server|
-      baza = baza_client(server.port)
-      baza.lock('pact1', 'the-owner')
+      baza_client(server.port).lock('pact1', 'the-owner')
     end
   end
 
@@ -311,8 +296,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(status: 302)
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert(baza.unlock('pact25', 'Jeff Lebowski'))
+      assert(baza_client(server.port).unlock('pact25', 'Jeff Lebowski'))
     end
   end
 
@@ -338,8 +322,7 @@ class TestBazaRb < Minitest::Test
         }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      baza.push('pact72', Factbase.new.export, [])
+      baza_client(server.port).push('pact72', Factbase.new.export, [])
     end
   end
 
@@ -359,8 +342,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert_equal(124, baza.recent('pact61'))
+      assert_equal(124, baza_client(server.port).recent('pact61'))
     end
   end
 
@@ -379,8 +361,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert(baza.name_exists?('pact74'))
+      assert(baza_client(server.port).name_exists?('pact74'))
     end
   end
 
@@ -400,8 +381,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert_predicate(baza.exit_code(94), :zero?)
+      assert_predicate(baza_client(server.port).exit_code(94), :zero?)
     end
   end
 
@@ -422,8 +402,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert_equal(body, baza.stdout(17).force_encoding('UTF-8'))
+      assert_equal(body, baza_client(server.port).stdout(17).force_encoding('UTF-8'))
     end
   end
 
@@ -443,8 +422,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(status: match_status_code('success'))
     execute_pact do |server|
-      baza = baza_client(server.port)
-      assert(baza.pull(47))
+      assert(baza_client(server.port).pull(47))
     end
   end
 
@@ -553,8 +531,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(status: 302)
     execute_pact do |server|
-      baza = baza_client(server.port)
-      baza.durable_lock(65, 'the-owner')
+      baza_client(server.port).durable_lock(65, 'the-owner')
     end
   end
 
@@ -586,8 +563,7 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(status: 302)
     execute_pact do |server|
-      baza = baza_client(server.port)
-      baza.durable_unlock(52, 'Robert DeNiro')
+      baza_client(server.port).durable_unlock(52, 'Robert DeNiro')
     end
   end
 
@@ -642,8 +618,7 @@ class TestBazaRb < Minitest::Test
       )
     execute_pact do |server|
       baza = baza_client(server.port)
-      result = baza.enter('foo', 'bar', 'no reason', 188) { 'after' }
-      assert_equal('before', result)
+      assert_equal('before', baza.enter('foo', 'bar', 'no reason', 188) { 'after' })
     end
   end
 
@@ -693,8 +668,7 @@ class TestBazaRb < Minitest::Test
       .will_respond_with(status: 302)
     execute_pact do |server|
       baza = baza_client(server.port)
-      result = baza.enter('pact9', 'bar', 'no reason', 183) { 'after' }
-      assert_equal('after', result)
+      assert_equal('after', baza.enter('pact9', 'bar', 'no reason', 183) { 'after' })
     end
   end
 
@@ -718,9 +692,7 @@ class TestBazaRb < Minitest::Test
         headers: { 'Content-Type' => 'text/plain' }
       )
     execute_pact do |server|
-      baza = baza_client(server.port)
-      id = baza.durable_find('pact10', 'bar.txt')
-      assert_equal(32, id)
+      assert_equal(32, baza_client(server.port).durable_find('pact10', 'bar.txt'))
     end
   end
 
@@ -740,23 +712,13 @@ class TestBazaRb < Minitest::Test
       )
       .will_respond_with(status: 404)
     execute_pact do |server|
-      baza = baza_client(server.port)
-      id = baza.durable_find('pact11', 'bar.txt')
-      assert_nil(id)
+      assert_nil(baza_client(server.port).durable_find('pact11', 'bar.txt'))
     end
   end
 
   private
 
   def baza_client(port, pause: 1)
-    BazaRb.new(
-      '127.0.0.1',
-      port,
-      '000',
-      ssl: false,
-      loog: Loog::NULL,
-      compress: false,
-      pause:
-    )
+    BazaRb.new('127.0.0.1', port, '000', ssl: false, loog: Loog::NULL, compress: false, pause:)
   end
 end
