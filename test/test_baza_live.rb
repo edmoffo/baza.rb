@@ -6,8 +6,8 @@
 require 'factbase'
 require 'loog'
 require 'net/http'
-require 'qbash'
 require 'online'
+require 'qbash'
 require 'random-port'
 require 'securerandom'
 require 'shellwords'
@@ -17,6 +17,7 @@ require 'uri'
 require 'wait_for'
 require 'webrick'
 require_relative 'test__helper'
+
 require_relative '../lib/baza-rb'
 
 # Test.
@@ -24,21 +25,17 @@ require_relative '../lib/baza-rb'
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class TestBazaLive < Minitest::Test
-  # The token to use for testing, in Zerocracy.com:
   TOKEN = 'ZRCY-00000000-0000-0000-0000-000000000000'
 
-  # The host of the production platform:
   HOST = 'api.zerocracy.com'
 
-  # The HTTPS port to use:
   PORT = 443
 
-  # Live agent:
   LIVE = BazaRb.new(HOST, PORT, TOKEN, loog: Loog::NULL)
 
   def test_live_full_cycle
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     fb.insert
@@ -48,10 +45,12 @@ class TestBazaLive < Minitest::Test
     assert_predicate(LIVE.recent(n), :positive?)
     id = LIVE.recent(n)
     assert(
-      wait_for(8 * 60) do
+      wait_for(2 * 60) do
         sleep(5)
         LIVE.finished?(id)
-      end
+      end,
+      "Job ##{id} (#{n.inspect}) did not finish in #{(Time.now - Time.now).round}s at #{HOST}, " \
+      'which most probably means it got stuck on the Zerocracy platform and never completed'
     )
     refute_nil(LIVE.pull(id))
     refute_nil(LIVE.stdout(id))
@@ -64,13 +63,13 @@ class TestBazaLive < Minitest::Test
 
   def test_live_whoami
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     refute_nil(LIVE.whoami)
   end
 
   def test_live_balance
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     z = LIVE.balance
     refute_nil(z)
     assert(z.to_f)
@@ -78,23 +77,22 @@ class TestBazaLive < Minitest::Test
 
   def test_live_fee_payment
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     refute_nil(LIVE.fee('unknown', 0.007, 'just for fun', 777))
   end
 
   def test_live_push_no_compression
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     fb.insert
-    baza = BazaRb.new(HOST, PORT, TOKEN, compress: false)
-    baza.push(fake_name, fb.export, [])
+    BazaRb.new(HOST, PORT, TOKEN, compress: false).push(fake_name, fb.export, [])
   end
 
   def test_live_durable_lock_unlock
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'before.bin')
       before = 'hello, Джеф!' * 10
@@ -118,7 +116,7 @@ class TestBazaLive < Minitest::Test
 
   def test_live_enter_valve
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     r = 'something'
     n = fake_name
     badge = fake_name
@@ -128,7 +126,7 @@ class TestBazaLive < Minitest::Test
 
   def test_get_csrf_token
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     assert_operator(LIVE.csrf.length, :>, 10)
   end
 
@@ -136,7 +134,7 @@ class TestBazaLive < Minitest::Test
     "fake#{SecureRandom.hex(8)}"
   end
 
-  def we_are_online?
-    $we_are_online ||= !ARGV.include?('--offline') && online?
+  def connected?
+    @connected ||= !ARGV.include?('--offline') && online?
   end
 end

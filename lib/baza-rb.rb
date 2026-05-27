@@ -32,10 +32,6 @@ require_relative 'baza-rb/version'
 # Copyright:: Copyright (c) 2024-2026 Yegor Bugayenko
 # License:: MIT
 class BazaRb
-  # How big are the chunks we send, by default, in bytes.
-  # Numbers larger than 1Mb may lead to problems with the server,
-  # since sending time will be too long and the server may drop
-  # connections. Better keep it as is: 1Mb.
   DEFAULT_CHUNK_SIZE = 1_000_000
 
   # When the server failed (503).
@@ -46,7 +42,7 @@ class BazaRb
 
   # When libcurl reported a transport-level failure (HTTP code 0, e.g.
   # connection reset, partial file, SSL error). Subclasses {TimedOut} so
-  # {#retry_it} retries it as a transient failure.
+  # {#attempt} retries it as a transient failure.
   class ConnectionFailed < TimedOut; end
 
   # When the server sent incorrectly compressed data.
@@ -82,9 +78,8 @@ class BazaRb
   def whoami
     nick = nil
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('whoami'))
-      nick = ret.body
-      throw :"I know that I am @#{nick}, at #{@host}"
+      nick = get(home.append('whoami')).body
+      throw(:"I know that I am @#{nick}, at #{@host}")
     end
     nick
   end
@@ -96,9 +91,8 @@ class BazaRb
   def balance
     z = nil
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('account').append('balance'))
-      z = ret.body.to_f
-      throw :"The balance is Ƶ#{z}, at #{@host}"
+      z = get(home.append('account').append('balance')).body.to_f
+      throw(:"The balance is Ƶ#{z}, at #{@host}")
     end
     z
   end
@@ -111,10 +105,10 @@ class BazaRb
   # @param [Integer] chunk_size Maximum size of one chunk
   # @raise [ServerFailure] If the push operation fails
   def push(pname, data, meta, chunk_size: DEFAULT_CHUNK_SIZE)
-    raise 'The "name" of the job is nil' if pname.nil?
-    raise 'The "name" of the job may not be empty' if pname.empty?
-    raise 'The "data" of the job is nil' if data.nil?
-    raise 'The "meta" of the job is nil' if meta.nil?
+    raise(RuntimeError, 'The "name" of the job is nil') if pname.nil?
+    raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
+    raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
+    raise(RuntimeError, 'The "meta" of the job is nil') if meta.nil?
     elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|
         File.binwrite(file.path, data)
@@ -127,7 +121,7 @@ class BazaRb
           chunk_size:
         )
       end
-      throw :"Pushed #{data.bytesize} bytes to #{@host}"
+      throw(:"Pushed #{data.bytesize} bytes to #{@host}")
     end
   end
 
@@ -137,15 +131,15 @@ class BazaRb
   # @return [String] Binary data of the factbase (can be saved to file)
   # @raise [ServerFailure] If the job doesn't exist or pull fails
   def pull(id)
-    raise 'The ID of the job is nil' if id.nil?
-    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID of the job must be a positive integer' unless id.positive?
+    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
+    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
     data = ''
     elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|
         download(home.append('pull').append("#{id}.fb"), file.path)
         data = File.binread(file)
-        throw :"Pulled #{data.bytesize} bytes of job ##{id} factbase at #{@host}"
+        throw(:"Pulled #{data.bytesize} bytes of job ##{id} factbase at #{@host}")
       end
     end
     data
@@ -157,14 +151,14 @@ class BazaRb
   # @return [Boolean] TRUE if the job has completed execution, FALSE otherwise
   # @raise [ServerFailure] If the job doesn't exist
   def finished?(id)
-    raise 'The ID of the job is nil' if id.nil?
-    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID of the job must be a positive integer' unless id.positive?
+    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
+    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
     fin = false
     elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('finished').append(id))
       fin = ret.body == 'yes'
-      throw :"The job ##{id} is #{'not yet ' unless fin}finished at #{@host}#{" (#{ret.body.inspect})" unless fin}"
+      throw(:"The job ##{id} is #{'not yet ' unless fin}finished at #{@host}#{" (#{ret.body.inspect})" unless fin}")
     end
     fin
   end
@@ -175,14 +169,13 @@ class BazaRb
   # @return [String] The stdout, as a text
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def stdout(id)
-    raise 'The ID of the job is nil' if id.nil?
-    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID of the job must be a positive integer' unless id.positive?
+    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
+    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
     stdout = ''
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('stdout').append("#{id}.txt"))
-      stdout = ret.body
-      throw :"The stdout of the job ##{id} has #{stdout.split("\n").count} lines"
+      stdout = get(home.append('stdout').append("#{id}.txt")).body
+      throw(:"The stdout of the job ##{id} has #{stdout.split("\n").count} lines")
     end
     stdout
   end
@@ -193,14 +186,13 @@ class BazaRb
   # @return [Integer] The exit code
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def exit_code(id)
-    raise 'The ID of the job is nil' if id.nil?
-    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID of the job must be a positive integer' unless id.positive?
+    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
+    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
     code = 0
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('exit').append("#{id}.txt"))
-      code = ret.body.to_i
-      throw :"The exit code of the job ##{id} is #{code}"
+      code = get(home.append('exit').append("#{id}.txt")).body.to_i
+      throw(:"The exit code of the job ##{id} is #{code}")
     end
     code
   end
@@ -211,14 +203,13 @@ class BazaRb
   # @return [String] The verdict
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def verified(id)
-    raise 'The ID of the job is nil' if id.nil?
-    raise 'The ID of the job must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID of the job must be a positive integer' unless id.positive?
+    raise(RuntimeError, 'The ID of the job is nil') if id.nil?
+    raise(RuntimeError, 'The ID of the job must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID of the job must be a positive integer') unless id.positive?
     verdict = ''
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('jobs').append(id).append('verified.txt'))
-      verdict = ret.body
-      throw :"The verdict of the job ##{id} is #{verdict.inspect}"
+      verdict = get(home.append('jobs').append(id).append('verified.txt')).body
+      throw(:"The verdict of the job ##{id} is #{verdict.inspect}")
     end
     verdict
   end
@@ -230,18 +221,16 @@ class BazaRb
   # @raise [RuntimeError] If the name is already locked
   # @raise [ServerFailure] If the lock operation fails
   def lock(pname, owner)
-    raise 'The "pname" of the product is nil' if pname.nil?
-    raise 'The "pname" of the product may not be empty' if pname.empty?
-    raise 'The "owner" of the lock is nil' if owner.nil?
-    raise 'The "owner" of the lock may not be empty' if owner.empty?
+    raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
+    raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
+    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
+    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
-      ret = post(
+      throw(:"Product name #{pname.inspect} locked at #{@host}") if post(
         home.append('lock').append(pname),
-        { 'owner' => owner },
-        [302, 409]
-      )
-      throw :"Product name #{pname.inspect} locked at #{@host}" if ret.code == 302
-      raise "Failed to lock #{pname.inspect} product at #{@host}, it's already locked"
+        { 'owner' => owner }, [302, 409]
+      ).code == 302
+      raise(RuntimeError, "Failed to lock #{pname.inspect} product at #{@host}, it's already locked")
     end
   end
 
@@ -251,16 +240,13 @@ class BazaRb
   # @param [String] owner The owner of the lock (any string)
   # @raise [ServerFailure] If the unlock operation fails
   def unlock(pname, owner)
-    raise 'The "pname" of the job is nil' if pname.nil?
-    raise 'The "pname" of the job may not be empty' if pname.empty?
-    raise 'The "owner" of the lock is nil' if owner.nil?
-    raise 'The "owner" of the lock may not be empty' if owner.empty?
+    raise(RuntimeError, 'The "pname" of the job is nil') if pname.nil?
+    raise(RuntimeError, 'The "pname" of the job may not be empty') if pname.empty?
+    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
+    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
-      post(
-        home.append('unlock').append(pname),
-        { 'owner' => owner }
-      )
-      throw :"Job name #{pname.inspect} unlocked at #{@host}"
+      post(home.append('unlock').append(pname), { 'owner' => owner })
+      throw(:"Job name #{pname.inspect} unlocked at #{@host}")
     end
   end
 
@@ -270,13 +256,12 @@ class BazaRb
   # @return [Integer] The ID of the job on the server
   # @raise [ServerFailure] If the job doesn't exist or retrieval fails
   def recent(name)
-    raise 'The "name" of the job is nil' if name.nil?
-    raise 'The "name" of the job may not be empty' if name.empty?
+    raise(RuntimeError, 'The "name" of the job is nil') if name.nil?
+    raise(RuntimeError, 'The "name" of the job may not be empty') if name.empty?
     job = nil
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('recent').append("#{name}.txt"))
-      job = ret.body.to_i
-      throw :"The recent \"#{name}\" job's ID is ##{job} at #{@host}"
+      job = get(home.append('recent').append("#{name}.txt")).body.to_i
+      throw(:"The recent \"#{name}\" job's ID is ##{job} at #{@host}")
     end
     job
   end
@@ -286,13 +271,12 @@ class BazaRb
   # @param [String] pname The name of the product on the server
   # @return [Boolean] TRUE if such name exists
   def name_exists?(pname)
-    raise 'The "pname" of the product is nil' if pname.nil?
-    raise 'The "pname" of the product may not be empty' if pname.empty?
+    raise(RuntimeError, 'The "pname" of the product is nil') if pname.nil?
+    raise(RuntimeError, 'The "pname" of the product may not be empty') if pname.empty?
     exists = false
     elapsed(@loog, level: Logger::INFO) do
-      ret = get(home.append('exists').append(pname))
-      exists = ret.body == 'yes'
-      throw :"The name #{pname.inspect} #{exists ? 'exists' : "doesn't exist"} at #{@host}"
+      exists = get(home.append('exists').append(pname)).body == 'yes'
+      throw(:"The name #{pname.inspect} #{exists ? 'exists' : "doesn't exist"} at #{@host}")
     end
     exists
   end
@@ -309,25 +293,27 @@ class BazaRb
   # @return [Integer] The ID of the created durable
   # @raise [ServerFailure] If the upload fails
   def durable_place(pname, file)
-    raise 'The "pname" of the durable is nil' if pname.nil?
-    raise 'The "pname" of the durable may not be empty' if pname.empty?
-    raise 'The "file" of the durable is nil' if file.nil?
-    raise "The file '#{file}' is absent" unless File.exist?(file)
+    raise(RuntimeError, 'The "pname" of the durable is nil') if pname.nil?
+    raise(RuntimeError, 'The "pname" of the durable may not be empty') if pname.empty?
+    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
+    raise(RuntimeError, "The file '#{file}' is absent") unless File.exist?(file)
     if File.size(file) > 1024
-      raise "The file '#{file}' is too big (#{File.size(file)} bytes) for durable_place(), use durable_save() instead"
+      raise(
+        RuntimeError,
+        "The file '#{file}' is too big (#{File.size(file)} bytes) for durable_place(), use durable_save() instead"
+      )
     end
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      ret = post(
+      id = post(
         home.append('durable-place'),
         {
           'pname' => pname,
           'file' => File.basename(file),
           'zip' => File.open(file, 'rb')
         }
-      )
-      id = ret.headers['X-Zerocracy-DurableId'].to_i
-      throw :"Durable ##{id} (#{file}, #{File.size(file)} bytes) placed for job \"#{pname}\" at #{@host}"
+      ).headers['X-Zerocracy-DurableId'].to_i
+      throw(:"Durable ##{id} (#{file}, #{File.size(file)} bytes) placed for job \"#{pname}\" at #{@host}")
     end
     id
   end
@@ -339,14 +325,14 @@ class BazaRb
   # @param [Integer] chunk_size Maximum size of one chunk
   # @raise [ServerFailure] If the save operation fails
   def durable_save(id, file, chunk_size: DEFAULT_CHUNK_SIZE)
-    raise 'The ID of the durable is nil' if id.nil?
-    raise 'The ID of the durable must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID of the durable must be a positive integer' unless id.positive?
-    raise 'The "file" of the durable is nil' if file.nil?
-    raise "The file '#{file}' is absent" unless File.exist?(file)
+    raise(RuntimeError, 'The ID of the durable is nil') if id.nil?
+    raise(RuntimeError, 'The ID of the durable must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID of the durable must be a positive integer') unless id.positive?
+    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
+    raise(RuntimeError, "The file '#{file}' is absent") unless File.exist?(file)
     elapsed(@loog, level: Logger::INFO) do
       upload(home.append('durables').append(id), file, chunk_size:)
-      throw :"Durable ##{id} saved #{File.size(file)} bytes to #{@host}"
+      throw(:"Durable ##{id} saved #{File.size(file)} bytes to #{@host}")
     end
   end
 
@@ -356,13 +342,13 @@ class BazaRb
   # @param [String] file The local file path to save the downloaded durable
   # @raise [ServerFailure] If the load operation fails
   def durable_load(id, file)
-    raise 'The ID of the durable is nil' if id.nil?
-    raise 'The ID of the durable must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID of the durable must be a positive integer' unless id.positive?
-    raise 'The "file" of the durable is nil' if file.nil?
+    raise(RuntimeError, 'The ID of the durable is nil') if id.nil?
+    raise(RuntimeError, 'The ID of the durable must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID of the durable must be a positive integer') unless id.positive?
+    raise(RuntimeError, 'The "file" of the durable is nil') if file.nil?
     elapsed(@loog, level: Logger::INFO) do
       download(home.append('durables').append(id), file)
-      throw :"Durable ##{id} loaded #{File.size(file)} bytes from #{@host}"
+      throw(:"Durable ##{id} loaded #{File.size(file)} bytes from #{@host}")
     end
   end
 
@@ -372,17 +358,14 @@ class BazaRb
   # @param [String] owner The owner of the lock
   # @raise [ServerFailure] If the lock operation fails
   def durable_lock(id, owner)
-    raise 'The ID of the durable is nil' if id.nil?
-    raise 'The ID of the durable must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID of the durable must be a positive integer' unless id.positive?
-    raise 'The "owner" of the lock is nil' if owner.nil?
-    raise 'The "owner" of the lock may not be empty' if owner.empty?
+    raise(RuntimeError, 'The ID of the durable is nil') if id.nil?
+    raise(RuntimeError, 'The ID of the durable must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID of the durable must be a positive integer') unless id.positive?
+    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
+    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
-      post(
-        home.append('durables').append(id).append('lock'),
-        { 'owner' => owner }
-      )
-      throw :"Durable ##{id} locked at #{@host}"
+      post(home.append('durables').append(id).append('lock'), { 'owner' => owner })
+      throw(:"Durable ##{id} locked at #{@host}")
     end
   end
 
@@ -392,17 +375,14 @@ class BazaRb
   # @param [String] owner The owner of the lock
   # @raise [ServerFailure] If the unlock operation fails
   def durable_unlock(id, owner)
-    raise 'The ID of the durable is nil' if id.nil?
-    raise 'The ID of the durable must be an Integer' unless id.is_a?(Integer)
-    raise 'The ID of the durable must be a positive integer' unless id.positive?
-    raise 'The "owner" of the lock is nil' if owner.nil?
-    raise 'The "owner" of the lock may not be empty' if owner.empty?
+    raise(RuntimeError, 'The ID of the durable is nil') if id.nil?
+    raise(RuntimeError, 'The ID of the durable must be an Integer') unless id.is_a?(Integer)
+    raise(RuntimeError, 'The ID of the durable must be a positive integer') unless id.positive?
+    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
+    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
     elapsed(@loog, level: Logger::INFO) do
-      post(
-        home.append('durables').append(id).append('unlock'),
-        { 'owner' => owner }
-      )
-      throw :"Durable ##{id} unlocked at #{@host}"
+      post(home.append('durables').append(id).append('unlock'), { 'owner' => owner })
+      throw(:"Durable ##{id} unlocked at #{@host}")
     end
   end
 
@@ -412,18 +392,18 @@ class BazaRb
   # @param [String] file The file name
   # @return [Integer, nil] The ID of the durable if found, nil if not found
   def durable_find(pname, file)
-    raise 'The "pname" is nil' if pname.nil?
-    raise 'The "pname" may not be empty' if pname.empty?
-    raise 'The "file" is nil' if file.nil?
-    raise 'The "file" may not be empty' if file.empty?
+    raise(RuntimeError, 'The "pname" is nil') if pname.nil?
+    raise(RuntimeError, 'The "pname" may not be empty') if pname.empty?
+    raise(RuntimeError, 'The "file" is nil') if file.nil?
+    raise(RuntimeError, 'The "file" may not be empty') if file.empty?
     id = nil
     elapsed(@loog, level: Logger::INFO) do
       ret = get(home.append('durable-find').add(file:, pname:), [200, 404])
       if ret.code == 200
         id = ret.body.to_i
-        throw :"Found durable ##{id} for job \"#{pname}\" file \"#{file}\" at #{@host}"
+        throw(:"Found durable ##{id} for job \"#{pname}\" file \"#{file}\" at #{@host}")
       else
-        throw :"Durable not found for job \"#{pname}\" file \"#{file}\" at #{@host}"
+        throw(:"Durable not found for job \"#{pname}\" file \"#{file}\" at #{@host}")
       end
     end
     id
@@ -438,25 +418,17 @@ class BazaRb
   # @return [Integer] Receipt ID for the transaction
   # @raise [ServerFailure] If the transfer fails
   def transfer(recipient, amount, summary, job: nil)
-    raise 'The "recipient" is nil' if recipient.nil?
-    raise 'The "amount" is nil' if amount.nil?
-    raise 'The "amount" must be Float' unless amount.is_a?(Float)
-    raise 'The "amount" must be positive' unless amount.positive?
-    raise 'The "summary" is nil' if summary.nil?
+    raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
+    raise(RuntimeError, 'The "amount" is nil') if amount.nil?
+    raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
+    raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
+    raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     id = nil
-    body = {
-      'human' => recipient,
-      'amount' => format('%0.6f', amount),
-      'summary' => summary
-    }
+    body = { 'human' => recipient, 'amount' => format('%0.6f', amount), 'summary' => summary }
     body['job'] = job unless job.nil?
     elapsed(@loog, level: Logger::INFO) do
-      ret = post(
-        home.append('account').append('transfer'),
-        body
-      )
-      id = ret.headers['X-Zerocracy-ReceiptId'].to_i
-      throw :"Transferred Ƶ#{format('%0.6f', amount)} to @#{recipient} at #{@host}"
+      id = post(home.append('account').append('transfer'), body).headers['X-Zerocracy-ReceiptId'].to_i
+      throw(:"Transferred Ƶ#{format('%0.6f', amount)} to @#{recipient} at #{@host}")
     end
     id
   end
@@ -470,16 +442,16 @@ class BazaRb
   # @return [Integer] Receipt ID for the fee payment
   # @raise [ServerFailure] If the payment fails
   def fee(tab, amount, summary, job)
-    raise 'The "tab" is nil' if tab.nil?
-    raise 'The "amount" is nil' if amount.nil?
-    raise 'The "amount" must be Float' unless amount.is_a?(Float)
-    raise 'The "amount" must be positive' unless amount.positive?
-    raise 'The "job" is nil' if job.nil?
-    raise 'The "job" must be Integer' unless job.is_a?(Integer)
-    raise 'The "summary" is nil' if summary.nil?
+    raise(RuntimeError, 'The "tab" is nil') if tab.nil?
+    raise(RuntimeError, 'The "amount" is nil') if amount.nil?
+    raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
+    raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
+    raise(RuntimeError, 'The "job" is nil') if job.nil?
+    raise(RuntimeError, 'The "job" must be Integer') unless job.is_a?(Integer)
+    raise(RuntimeError, 'The "summary" is nil') if summary.nil?
     id = nil
     elapsed(@loog, level: Logger::INFO) do
-      ret = post(
+      id = post(
         home.append('account').append('fee'),
         {
           'amount' => format('%0.6f', amount),
@@ -487,9 +459,8 @@ class BazaRb
           'summary' => summary,
           'tab' => tab
         }
-      )
-      id = ret.headers['X-Zerocracy-ReceiptId'].to_i
-      throw :"Fee Ƶ#{format('%0.6f', amount)} paid at #{@host}"
+      ).headers['X-Zerocracy-ReceiptId'].to_i
+      throw(:"Fee Ƶ#{format('%0.6f', amount)} paid at #{@host}")
     end
     id
   end
@@ -509,21 +480,13 @@ class BazaRb
   # @raise [ServerFailure] If the valve operation fails
   def enter(pname, badge, why, job)
     elapsed(@loog, good: "Entered valve #{badge} to #{pname}") do
-      retry_it do
+      attempt do
         ret = get(home.append('result').add(badge:), [200, 204])
         return ret.body if ret.code == 200
         r = yield
         uri = home.append('valves')
         uri = uri.add(job:) unless job.nil?
-        post(
-          uri,
-          {
-            'badge' => badge,
-            'pname' => pname,
-            'result' => r.to_s,
-            'why' => why
-          }
-        )
+        post(uri, { 'badge' => badge, 'pname' => pname, 'result' => r.to_s, 'why' => why })
         r
       end
     end
@@ -540,7 +503,7 @@ class BazaRb
     token = nil
     elapsed(@loog, level: Logger::INFO) do
       token = get(home.append('csrf')).body
-      throw :"CSRF token retrieved (#{token.length} chars)"
+      throw(:"CSRF token retrieved (#{token.length} chars)")
     end
     token
   end
@@ -553,14 +516,14 @@ class BazaRb
   # @param [Iri] uri The current URI object to update
   # @return [Iri] The updated URI object (or original if no valid header present)
   # @note Invalid hostnames are logged as warnings and ignored
-  def stick_host(ret, uri)
+  def rehost(ret, uri)
     sticky = ret.headers && ret.headers['X-Zerocracy-Host']
     return uri unless sticky
     return uri unless hostname?(sticky)
-    new_host = sticky.strip.chomp('.')
-    if new_host != @host
-      @loog.debug("Switching host from #{@host} to #{new_host} as per X-Zerocracy-Host")
-      @host = new_host
+    host = sticky.strip.chomp('.')
+    if host != @host
+      @loog.debug("Switching host from #{@host} to #{host} as per X-Zerocracy-Host")
+      @host = host
     end
     uri.host(@host)
   end
@@ -578,7 +541,7 @@ class BazaRb
   # Get the user agent string for HTTP requests.
   #
   # @return [String] The user agent string
-  def user_agent
+  def agent
     "baza.rb #{BazaRb::VERSION}"
   end
 
@@ -587,7 +550,7 @@ class BazaRb
   # @return [Hash] The default headers including User-Agent, Connection, and authentication token
   def headers
     {
-      'User-Agent' => user_agent,
+      'User-Agent' => agent,
       'Connection' => 'close',
       'X-Zerocracy-Token' => @token
     }
@@ -598,11 +561,9 @@ class BazaRb
   # @param [String] data The gzipped data to decompress
   # @return [String] The decompressed data
   def unzip(data)
-    io = StringIO.new(data)
-    gz = Zlib::GzipReader.new(io)
-    gz.read
+    Zlib::GzipReader.new(StringIO.new(data)).read
   rescue Zlib::GzipFile::Error => e
-    raise BadCompression, "Failed to unzip #{data.bytesize} bytes: #{e.message}"
+    raise(BadCompression, "Failed to unzip #{data.bytesize} bytes: #{e.message}")
   end
 
   # Compress request parameters with gzip.
@@ -615,16 +576,16 @@ class BazaRb
     gz.write(params.fetch(:body))
     gz.close
     body = io.string
-    headers = params
-      .fetch(:headers)
-      .merge(
+    params.merge(
+      body:,
+      headers: params.fetch(:headers).merge(
         {
           'Content-Type' => 'application/zip',
           'Content-Encoding' => 'gzip',
           'Content-Length' => body.bytesize
         }
       )
-    params.merge(body:, headers:)
+    )
   end
 
   # Build the base URI for API requests.
@@ -641,7 +602,7 @@ class BazaRb
   #
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
-  def retry_it(&)
+  def attempt(&)
     with_retries(max_tries: @retries, rescue: TimedOut, &)
   end
 
@@ -649,7 +610,7 @@ class BazaRb
   #
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
-  def retry_if_server_busy(&)
+  def await(&)
     attempt = 0
     loop do
       ret = yield
@@ -674,7 +635,7 @@ class BazaRb
   #
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
-  def retry_if_server_failed(&)
+  def recover(&)
     attempt = 0
     loop do
       ret = yield
@@ -701,7 +662,7 @@ class BazaRb
     if ret.return_code == :operation_timedout
       msg = "#{mtd} #{url} timed out in #{ret.total_time}s"
       @loog.error(msg)
-      raise TimedOut, msg
+      raise(TimedOut, msg)
     end
     log = "#{mtd} #{url} -> #{ret.code} (#{format('%0.2f', ret.total_time)}s)"
     if allowed.include?(ret.code)
@@ -724,22 +685,29 @@ class BazaRb
     ].compact
     msg = "Invalid response code ##{ret.code} at #{mtd} #{url}"
     msg += " (#{details.join(', ')})" unless details.empty?
-    case ret.code
-    when 500, 503
-      msg +=
-        ", most probably it's an internal error on the server, " \
-        'please report this to https://github.com/zerocracy/baza.rb'
-    when 404
-      msg +=
-        ", most probably you are trying to reach a wrong server, which doesn't " \
-        'have the URL that it is expected to have'
-    when 0
-      msg +=
-        ', most likely a connection failure, timeout, or SSL error ' \
-        "(r:#{ret.return_code}, m:#{ret.return_message})"
-    end
+    msg += hint(ret)
     @loog.error(msg)
     raise(ret.code.zero? ? ConnectionFailed : ServerFailure, msg)
+  end
+
+  # Build a human hint explaining a failing HTTP response code.
+  #
+  # @param [Typhoeus::Response] ret The response
+  # @return [String] A suffix to append to the error message
+  def hint(ret)
+    case ret.code
+    when 500, 503
+      ", most probably it's an internal error on the server, " \
+      'please report this to https://github.com/zerocracy/baza.rb'
+    when 404
+      ", most probably you are trying to reach a wrong server, which doesn't " \
+      'have the URL that it is expected to have'
+    when 0
+      ', most likely a connection failure, timeout, or SSL error ' \
+      "(r:#{ret.return_code}, m:#{ret.return_message})"
+    else
+      ''
+    end
   end
 
   # Make a GET request.
@@ -749,16 +717,11 @@ class BazaRb
   # @return [Typhoeus::Response] The HTTP response
   # @raise [ServerFailure] If the response code is not in the allowed list
   def get(uri, allowed = [200])
-    retry_it do
+    attempt do
       checked(
-        retry_if_server_failed do
-          retry_if_server_busy do
-            Typhoeus::Request.get(
-              uri.to_s,
-              headers:,
-              connecttimeout: @timeout,
-              timeout: @timeout
-            )
+        recover do
+          await do
+            Typhoeus::Request.get(uri.to_s, headers:, connecttimeout: @timeout, timeout: @timeout)
           end
         end,
         allowed
@@ -774,10 +737,10 @@ class BazaRb
   # @return [Typhoeus::Response] The HTTP response
   # @raise [ServerFailure] If the response code is not in the allowed list
   def post(uri, params, allowed = [302])
-    retry_it do
+    attempt do
       checked(
-        retry_if_server_failed do
-          retry_if_server_busy do
+        recover do
+          await do
             Typhoeus::Request.post(
               uri.to_s,
               body: params.merge('_csrf' => csrf).sort.to_h,
@@ -807,10 +770,10 @@ class BazaRb
       loop do
         slice = ''
         ret =
-          retry_it do
+          attempt do
             checked(
-              retry_if_server_failed do
-                retry_if_server_busy do
+              recover do
+                await do
                   slice = ''
                   request = Typhoeus::Request.new(
                     uri.to_s,
@@ -839,7 +802,7 @@ class BazaRb
           ('in gzip' if ret.headers['Content-Encoding'] == 'gzip'),
           ("ranged as #{ret.headers['Content-Range'].inspect}" if ret.headers['Content-Range'])
         ]
-        uri = stick_host(ret, uri)
+        uri = rehost(ret, uri)
         if blanks.include?(ret.code)
           sleep(2)
           next
@@ -849,7 +812,7 @@ class BazaRb
             slice = unzip(slice)
             msg << "unzipped to #{slice.bytesize} bytes"
           rescue BazaRb::BadCompression => e
-            raise BazaRb::BadCompression, "#{msg.compact.join(', ')} (#{e.message})"
+            raise(BazaRb::BadCompression, "#{msg.compact.join(', ')} (#{e.message})")
           end
         end
         File.open(file, 'ab') do |f|
@@ -860,17 +823,16 @@ class BazaRb
         break if ret.code == 200
         _, v = ret.headers['Content-Range'].split
         range, total = v.split('/')
-        raise "Total size is not valid (#{total.inspect})" unless total.match?(/\A(?:\*|[0-9]+)\z/)
+        raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
         _b, e = range.split('-', 2)
-        raise "Range is not valid (#{range.inspect})" if e.nil?
-        raise "Range is not valid (#{range.inspect})" unless e.match?(/^[0-9]+$/)
-        len = ret.headers['Content-Length'].to_i
+        raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
+        raise(RuntimeError, "Range is not valid (#{range.inspect})") unless e.match?(/^[0-9]+$/)
         break if e.to_i == total.to_i - 1
         break if total == '0'
         chunk += 1
-        sleep(1) if len.zero?
+        sleep(1) if ret.headers['Content-Length'].to_i.zero?
       end
-      throw :"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}"
+      throw(:"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}")
     end
   end
 
@@ -893,9 +855,7 @@ class BazaRb
     params = {
       connecttimeout: @timeout,
       timeout: @timeout,
-      headers: headers.merge(extra).merge(
-        'Content-Type' => 'application/octet-stream'
-      )
+      headers: headers.merge(extra).merge('Content-Type' => 'application/octet-stream')
     }
     total = File.size(file)
     chunk = 0
@@ -918,14 +878,11 @@ class BazaRb
         params = zipped(params) if @compress
         begin
           ret =
-            retry_it do
+            attempt do
               checked(
-                retry_if_server_failed do
-                  retry_if_server_busy do
-                    Typhoeus::Request.put(
-                      uri.to_s,
-                      params
-                    )
+                recover do
+                  await do
+                    Typhoeus::Request.put(uri.to_s, params)
                   end
                 end
               )
@@ -944,7 +901,7 @@ class BazaRb
           sent = 0
           next
         end
-        uri = stick_host(ret, uri)
+        uri = rehost(ret, uri)
         sent += params[:body].bytesize
         @loog.debug(
           [
@@ -959,7 +916,7 @@ class BazaRb
         break if total <= chunk_size
         chunk += 1
       end
-      throw :"Uploaded #{sent} bytes to #{uri}#{" in #{chunk + 1} chunks" if chunk.positive?}"
+      throw(:"Uploaded #{sent} bytes to #{uri}#{" in #{chunk + 1} chunks" if chunk.positive?}")
     end
   end
 end

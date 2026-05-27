@@ -15,6 +15,7 @@ require 'stringio'
 require 'uri'
 require 'webrick'
 require_relative 'test__helper'
+
 require_relative '../lib/baza-rb'
 
 # Edge case tests using WebMock for implementation-specific behavior.
@@ -29,10 +30,8 @@ class TestBazaRbEdge < Minitest::Test
       stub_request(:post, 'https://example.org/durable-place').to_return(
         status: 302, headers: { 'X-Zerocracy-DurableId' => '42' }
       )
-      stub_request(:post, %r{https://example\.org/durables/42/lock})
-        .to_return(status: 302)
-      stub_request(:post, %r{https://example\.org/durables/42/unlock})
-        .to_return(status: 302)
+      stub_request(:post, %r{https://example\.org/durables/42/lock}).to_return(status: 302)
+      stub_request(:post, %r{https://example\.org/durables/42/unlock}).to_return(status: 302)
       stub_request(:put, 'https://example.org/durables/42')
         .with(headers: { 'X-Zerocracy-Chunk' => '0' })
         .to_return(status: 200)
@@ -52,26 +51,26 @@ class TestBazaRbEdge < Minitest::Test
 
   def test_real_http
     WebMock.enable_net_connect!
-    req =
-      with_http_server(200, 'yes') do |baza|
-        baza.name_exists?('simple')
-      end
-    assert_equal("baza.rb #{BazaRb::VERSION}", req['user-agent'])
+    assert_equal(
+      "baza.rb #{BazaRb::VERSION}",
+      with_http(200, 'yes') { |baza| baza.name_exists?('simple') }['user-agent']
+    )
   end
 
   def test_push_with_meta
     WebMock.enable_net_connect!
-    req =
-      with_http_server(200, 'yes') do |baza|
+    assert_equal(
+      'Ym9vbSE= 0YXQtdC5IQ==',
+      with_http(200, 'yes') do |baza|
         baza.push('simple', 'hello, world!', ['boom!', 'хей!'])
-      end
-    assert_equal('Ym9vbSE= 0YXQtdC5IQ==', req['x-zerocracy-meta'])
+      end['x-zerocracy-meta']
+    )
   end
 
   def test_push_with_big_meta
     WebMock.enable_net_connect!
-    req =
-      with_http_server(200, 'yes') do |baza|
+    assert(
+      with_http(200, 'yes') do |baza|
         baza.push(
           'simple',
           'hello, world!',
@@ -81,8 +80,8 @@ class TestBazaRbEdge < Minitest::Test
             'duration:59595'
           ]
         )
-      end
-    assert(req['x-zerocracy-meta'])
+      end['x-zerocracy-meta']
+    )
   end
 
   def test_push_compressed_content
@@ -90,13 +89,12 @@ class TestBazaRbEdge < Minitest::Test
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     req =
-      with_http_server(200, 'yes') do |baza|
+      with_http(200, 'yes') do |baza|
         baza.push('simple', fb.export, %w[meta1 meta2 meta3])
       end
     assert_equal('application/zip', req.content_type)
     assert_equal('gzip', req['content-encoding'])
-    body = Zlib::GzipReader.zcat(StringIO.new(req.body))
-    assert_equal(fb.export, body)
+    assert_equal(fb.export, Zlib::GzipReader.zcat(StringIO.new(req.body)))
   end
 
   def test_push_compression_disabled
@@ -104,7 +102,7 @@ class TestBazaRbEdge < Minitest::Test
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     req =
-      with_http_server(200, 'yes', compress: false) do |baza|
+      with_http(200, 'yes', compress: false) do |baza|
         baza.push('simple', fb.export, %w[meta1 meta2 meta3])
       end
     assert_equal('application/octet-stream', req.content_type)
@@ -122,8 +120,8 @@ class TestBazaRbEdge < Minitest::Test
           req = WEBrick::HTTPRequest.new(WEBrick::Config::HTTP)
           req.parse(socket)
           req.body
-          sleep 0.1
-          socket.puts "HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nabc"
+          sleep(0.1)
+          socket.puts("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nabc")
           socket.close
         end
       assert_includes(
@@ -154,15 +152,18 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
-  def test_durable_load_reports_invalid_content_range_without_hyphen
+  def test_durable_load_rejects_range_without_hyphen
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
       stub_request(:get, 'https://example.org:443/durables/42')
         .with(headers: { 'Range' => 'bytes=0-' })
         .to_return(status: 206, body: 'x', headers: { 'Content-Range' => 'bytes 0/10' })
-      error = assert_raises(RuntimeError) { fake_baza.durable_load(42, file) }
-      assert_includes(error.message, 'Range is not valid ("0")')
+      assert_includes(
+        assert_raises(RuntimeError) do
+          fake_baza.durable_load(42, file)
+        end.message, 'Range is not valid ("0")'
+      )
     end
   end
 
@@ -177,14 +178,14 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
-  def test_checked_with_500_error
+  def test_checked_with_internal_error
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
       .to_return(status: 500, headers: { 'X-Zerocracy-Failure' => 'Boom-500', 'X-Zerocracy-FailureMark' => 'mark-500' })
     error =
       assert_raises(BazaRb::ServerFailure) do
-        fake_baza.send(
+        fake_baza.__send__(
           :checked,
           Typhoeus.get('https://example.org:443/test', headers: { 'X-Zerocracy-Token' => '000' })
         )
@@ -195,7 +196,7 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(error.message, 'mark-500')
   end
 
-  def test_checked_with_503_error
+  def test_checked_with_unavailable
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
@@ -208,7 +209,7 @@ class TestBazaRbEdge < Minitest::Test
       )
     error =
       assert_raises(BazaRb::ServerFailure) do
-        fake_baza.send(
+        fake_baza.__send__(
           :checked,
           Typhoeus.get('https://example.org:443/test', headers: { 'X-Zerocracy-Token' => '000' })
         )
@@ -219,14 +220,14 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(error.message, 'mark-503')
   end
 
-  def test_checked_with_404_error
+  def test_checked_with_not_found
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
       .to_return(status: 404)
     error =
       assert_raises(BazaRb::ServerFailure) do
-        fake_baza.send(
+        fake_baza.__send__(
           :checked,
           Typhoeus.get('https://example.org:443/test', headers: { 'X-Zerocracy-Token' => '000' })
         )
@@ -235,26 +236,25 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(error.message, 'most probably you are trying to reach a wrong server')
   end
 
-  def test_checked_with_0_error
+  def test_checked_with_zero_code
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
       .to_return(status: 0)
     error =
       assert_raises(BazaRb::ConnectionFailed) do
-        fake_baza.send(
+        fake_baza.__send__(
           :checked,
           Typhoeus.get('https://example.org:443/test', headers: { 'X-Zerocracy-Token' => '000' })
         )
       end
-    assert_kind_of(BazaRb::TimedOut, error, 'ConnectionFailed must inherit from TimedOut so retry_it retries it')
+    assert_kind_of(BazaRb::TimedOut, error, 'ConnectionFailed must inherit from TimedOut so attempt retries it')
     assert_includes(error.message, 'Invalid response code #0')
     assert_includes(error.message, 'most likely a connection failure')
   end
 
   def test_push_without_compression
     WebMock.disable_net_connect!
-    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
     stub_request(:put, 'https://example.org:443/push/test')
       .with(
         headers: {
@@ -265,7 +265,7 @@ class TestBazaRbEdge < Minitest::Test
         body: 'data'
       )
       .to_return(status: 200, body: '123')
-    baza.push('test', 'data', [])
+    BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false).push('test', 'data', [])
   end
 
   def test_download_retries_on_busy_server
@@ -284,16 +284,16 @@ class TestBazaRbEdge < Minitest::Test
           end
         end
       baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
-      baza.send(:download, baza.send(:home).append('file'), file)
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
       assert_equal(2, attempts, 'Expected two HTTP calls due to 429 retries')
       assert_equal('success content', File.read(file))
     end
   end
 
   # Reproduces zerocracy/baza.rb#289: BazaRb#download never retries on
-  # timeout because checked() is called outside retry_it. After the fix,
+  # timeout because checked() is called outside attempt. After the fix,
   # a libcurl operation_timedout on the first GET re-raises BazaRb::TimedOut
-  # from inside retry_it, which retries up to @retries times.
+  # from inside attempt, which retries up to @retries times.
   def test_download_retries_on_timeout
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
@@ -306,7 +306,7 @@ class TestBazaRbEdge < Minitest::Test
         'example.org', 443, '000',
         loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0
       )
-      baza.send(:download, baza.send(:home).append('file'), file)
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
       assert_equal('success content', File.read(file))
       assert_requested(:get, 'https://example.org:443/file', times: 2)
     end
@@ -319,11 +319,12 @@ class TestBazaRbEdge < Minitest::Test
       stub_request(:get, 'https://example.org:443/file')
         .with(headers: { 'Range' => 'bytes=0-' })
         .to_return(status: 206, body: 'x', headers: { 'Content-Range' => 'bytes 0-0/*malformed' })
-      error =
+      assert_includes(
         assert_raises(RuntimeError) do
-          fake_baza.send(:download, fake_baza.send(:home).append('file'), file)
-        end
-      assert_includes(error.message, 'Total size is not valid ("*malformed")')
+          fake_baza.__send__(:download, fake_baza.__send__(:home).append('file'), file)
+        end.message,
+        'Total size is not valid ("*malformed")'
+      )
     end
   end
 
@@ -343,7 +344,7 @@ class TestBazaRbEdge < Minitest::Test
           end
         end
       baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
-      baza.send(:upload, baza.send(:home).append('file'), file)
+      baza.__send__(:upload, baza.__send__(:home).append('file'), file)
       assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries')
     end
   end
@@ -361,8 +362,10 @@ class TestBazaRbEdge < Minitest::Test
           { status: 302, body: '' }
         end
       end
-    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
-    baza.lock('simple', 'owner')
+    BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0).lock(
+      'simple',
+      'owner'
+    )
     assert_equal(2, attempts, 'Expected 2 HTTP calls due to 429 retries on POST')
   end
 
@@ -370,7 +373,7 @@ class TestBazaRbEdge < Minitest::Test
   # request (e.g. nginx returns 499 "Client Closed Request" after a load-balancer
   # timeout), the failure is server-side from the client's point of view and
   # should be retried, just like 5xx responses.
-  def test_upload_retries_on_499_failure
+  def test_upload_retries_on_client_close
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'upload.txt')
@@ -386,17 +389,17 @@ class TestBazaRbEdge < Minitest::Test
           end
         end
       baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, pause: 0)
-      baza.send(:upload, baza.send(:home).append('file'), file)
+      baza.__send__(:upload, baza.__send__(:home).append('file'), file)
       assert_equal(2, attempts, 'Expected 2 HTTP calls due to 499 retries')
     end
   end
 
   # Reproduces zerocracy/baza.rb#111: when libcurl reports a transport-level
   # failure such as CURLE_PARTIAL_FILE (HTTP code 0, Typhoeus return_code
-  # :partial_file), BazaRb#checked must raise something that BazaRb#retry_it
+  # :partial_file), BazaRb#checked must raise something that BazaRb#attempt
   # will retry, so an upload doesn't abort the whole pipeline on the first
   # transient failure.
-  def test_checked_partial_file_response_is_retryable_by_retry_it
+  def test_checked_partial_file_is_retryable
     WebMock.disable_net_connect!
     fake = Typhoeus::Response.new(
       return_code: :partial_file,
@@ -405,26 +408,27 @@ class TestBazaRbEdge < Minitest::Test
       total_time: 0.01
     )
     fake.request = Typhoeus::Request.new('https://example.org:443/file', method: :put)
-    error = assert_raises(BazaRb::ConnectionFailed) { fake_baza.send(:checked, fake) }
-    assert_kind_of(BazaRb::TimedOut, error, 'must inherit from TimedOut so retry_it retries it')
+    error = assert_raises(BazaRb::ConnectionFailed) { fake_baza.__send__(:checked, fake) }
+    assert_kind_of(BazaRb::TimedOut, error, 'must inherit from TimedOut so attempt retries it')
     assert_includes(error.message, 'r:partial_file')
     attempts = 0
     fast = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, retries: 2, pause: 0)
-    raised =
+    assert_equal(
+      'simulated partial file',
       assert_raises(BazaRb::ConnectionFailed) do
-        fast.send(:retry_it) do
+        fast.__send__(:attempt) do
           attempts += 1
-          raise BazaRb::ConnectionFailed, 'simulated partial file'
+          raise(BazaRb::ConnectionFailed, 'simulated partial file')
         end
-      end
-    assert_equal('simulated partial file', raised.message)
-    assert_operator(attempts, :>, 1, 'retry_it must retry on ConnectionFailed (it is a TimedOut)')
+      end.message
+    )
+    assert_operator(attempts, :>, 1, 'attempt must retry on ConnectionFailed (it is a TimedOut)')
   end
 
   def test_durable_load_from_sinatra
     WebMock.enable_net_connect!
     Dir.mktmpdir do |dir|
-      with_sinatra_server do |baza|
+      with_sinatra do |baza|
         file = File.join(dir, 'x.txt')
         baza.durable_load(42, file)
         assert_equal("Hello, \xFF\xFE\x12!", File.read(file))
@@ -446,18 +450,18 @@ class TestBazaRbEdge < Minitest::Test
           body: 'file content',
           headers: { 'X-Zerocracy-Host' => other }
         )
-      baza.send(:download, baza.send(:home).append('file'), file)
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
       assert_equal('file content', File.read(file), 'File should be downloaded correctly')
-      file2 = File.join(dir, 'test2.txt')
-      stub_request(:get, "https://#{other}:443/file2")
+      second = File.join(dir, 'test2.txt')
+      stub_request(:get, "https://#{other}:443/second")
         .with(headers: { 'Range' => 'bytes=0-' })
         .to_return(
           status: 200,
           body: 'second file',
           headers: {}
         )
-      baza.send(:download, baza.send(:home).append('file2'), file2)
-      assert_equal('second file', File.read(file2), 'Second request should go to new host')
+      baza.__send__(:download, baza.__send__(:home).append('second'), second)
+      assert_equal('second file', File.read(second), 'Second request should go to new host')
     end
   end
 
@@ -485,7 +489,7 @@ class TestBazaRbEdge < Minitest::Test
           body: 'chunk',
           headers: {}
         )
-      baza.send(:download, baza.send(:home).append('file'), file)
+      baza.__send__(:download, baza.__send__(:home).append('file'), file)
       assert_equal('first chunk', File.read(file), 'All chunks should be downloaded')
     end
   end
@@ -504,58 +508,67 @@ class TestBazaRbEdge < Minitest::Test
           body: 'OK',
           headers: { 'X-Zerocracy-Host' => other }
         )
-      baza.send(:upload, baza.send(:home).append('file'), file)
-      stub_request(:put, "https://#{other}:443/file2")
-        .to_return(
-          status: 200,
-          body: 'OK'
-        )
-      baza.send(:upload, baza.send(:home).append('file2'), file)
+      baza.__send__(:upload, baza.__send__(:home).append('file'), file)
+      stub_request(:put, "https://#{other}:443/second").to_return(status: 200, body: 'OK')
+      baza.__send__(:upload, baza.__send__(:home).append('second'), file)
     end
   end
 
   def test_lock_raises_when_owner_is_empty
-    error = assert_raises(RuntimeError) { fake_baza.lock('pname', '') }
-    assert_equal('The "owner" of the lock may not be empty', error.message)
+    assert_equal(
+      'The "owner" of the lock may not be empty',
+      assert_raises(RuntimeError) { fake_baza.lock('pname', '') }.message
+    )
   end
 
   def test_transfer_raises_when_amount_is_not_positive
     [0.0, -1.0, -0.000001].each do |amount|
-      error = assert_raises(RuntimeError) { fake_baza.transfer('jeff', amount, 'pay') }
-      assert_equal('The "amount" must be positive', error.message)
+      assert_equal(
+        'The "amount" must be positive',
+        assert_raises(RuntimeError) { fake_baza.transfer('jeff', amount, 'pay') }.message
+      )
     end
   end
 
   def test_fee_raises_when_amount_is_not_positive
     [0.0, -1.0, -0.000001].each do |amount|
-      error = assert_raises(RuntimeError) { fake_baza.fee('unknown', amount, 'pay', 42) }
-      assert_equal('The "amount" must be positive', error.message)
+      assert_equal(
+        'The "amount" must be positive',
+        assert_raises(RuntimeError) { fake_baza.fee('unknown', amount, 'pay', 42) }.message
+      )
     end
   end
 
   def test_pull_raises_when_id_is_not_integer
-    error = assert_raises(RuntimeError) { fake_baza.pull(42.5) }
-    assert_equal('The ID of the job must be an Integer', error.message)
+    assert_equal('The ID of the job must be an Integer', assert_raises(RuntimeError) { fake_baza.pull(42.5) }.message)
   end
 
   def test_finished_raises_when_id_is_not_integer
-    error = assert_raises(RuntimeError) { fake_baza.finished?(42.5) }
-    assert_equal('The ID of the job must be an Integer', error.message)
+    assert_equal(
+      'The ID of the job must be an Integer',
+      assert_raises(RuntimeError) { fake_baza.finished?(42.5) }.message
+    )
   end
 
   def test_stdout_raises_when_id_is_not_integer
-    error = assert_raises(RuntimeError) { fake_baza.stdout(42.5) }
-    assert_equal('The ID of the job must be an Integer', error.message)
+    assert_equal(
+      'The ID of the job must be an Integer',
+      assert_raises(RuntimeError) { fake_baza.stdout(42.5) }.message
+    )
   end
 
   def test_exit_code_raises_when_id_is_not_integer
-    error = assert_raises(RuntimeError) { fake_baza.exit_code(42.5) }
-    assert_equal('The ID of the job must be an Integer', error.message)
+    assert_equal(
+      'The ID of the job must be an Integer',
+      assert_raises(RuntimeError) { fake_baza.exit_code(42.5) }.message
+    )
   end
 
   def test_verified_raises_when_id_is_not_integer
-    error = assert_raises(RuntimeError) { fake_baza.verified(42.5) }
-    assert_equal('The ID of the job must be an Integer', error.message)
+    assert_equal(
+      'The ID of the job must be an Integer',
+      assert_raises(RuntimeError) { fake_baza.verified(42.5) }.message
+    )
   end
 
   def test_upload_switches_host_mid_chunks
@@ -587,7 +600,7 @@ class TestBazaRbEdge < Minitest::Test
           body: 'OK',
           headers: {}
         )
-      baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
+      baza.__send__(:upload, baza.__send__(:home).append('file'), file, {}, chunk_size: 1_000_000)
     end
   end
 
@@ -596,7 +609,7 @@ class TestBazaRbEdge < Minitest::Test
   # PUT replies "400 Bad Request" with an "Expecting chunk #N" hint in the
   # `X-Zerocracy-Flash` header. The client should restart the upload from
   # the chunk the server is asking for, instead of aborting the whole job.
-  def test_upload_restarts_when_server_loses_chunk_state
+  def test_upload_restarts_when_server_loses_chunk
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'large.txt')
@@ -619,11 +632,8 @@ class TestBazaRbEdge < Minitest::Test
             { status: 200, body: 'OK' }
           end
         end
-      baza = BazaRb.new(
-        'example.org', 443, '000',
-        loog: Loog::NULL, compress: false, retries: 2, pause: 0
-      )
-      baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+      baza.__send__(:upload, baza.__send__(:home).append('file'), file, {}, chunk_size: 1_000_000)
       assert_equal(
         %w[0 1 0 1 2], received,
         'Expected the client to restart the upload from chunk #0 after the reboot, ' \
@@ -637,7 +647,7 @@ class TestBazaRbEdge < Minitest::Test
   # `Expecting chunk #N` hint (for example a generic `Server out of disk`),
   # `BazaRb#upload` must re-raise the original `BazaRb::ServerFailure` on the
   # first PUT instead of entering the rewind loop.
-  def test_upload_raises_on_non_matching_flash_without_rewinding
+  def test_upload_raises_on_unmatched_flash
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'large.txt')
@@ -651,15 +661,13 @@ class TestBazaRbEdge < Minitest::Test
             headers: { 'X-Zerocracy-Flash' => 'Server out of disk' }
           }
         end
-      baza = BazaRb.new(
-        'example.org', 443, '000',
-        loog: Loog::NULL, compress: false, retries: 2, pause: 0
-      )
-      error =
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: 2, pause: 0)
+      assert_match(
+        /Server out of disk/,
         assert_raises(BazaRb::ServerFailure) do
-          baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
-        end
-      assert_match(/Server out of disk/, error.message)
+          baza.__send__(:upload, baza.__send__(:home).append('file'), file, {}, chunk_size: 1_000_000)
+        end.message
+      )
       assert_equal(
         %w[0], received,
         'Expected the client to fail on the first PUT without rewinding ' \
@@ -695,18 +703,15 @@ class TestBazaRbEdge < Minitest::Test
           end
         end
       retries = 2
-      baza = BazaRb.new(
-        'example.org', 443, '000',
-        loog: Loog::NULL, compress: false, retries: retries, pause: 0
-      )
-      error =
+      baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, retries: retries, pause: 0)
+      assert_match(
+        /Expecting chunk #0/,
         assert_raises(BazaRb::ServerFailure) do
-          baza.send(:upload, baza.send(:home).append('file'), file, {}, chunk_size: 1_000_000)
-        end
-      assert_match(/Expecting chunk #0/, error.message)
-      rewinds = received.count('1')
+          baza.__send__(:upload, baza.__send__(:home).append('file'), file, {}, chunk_size: 1_000_000)
+        end.message
+      )
       assert_equal(
-        retries + 1, rewinds,
+        retries + 1, received.count('1'),
         'Expected the rewind loop to stop after rewinds exceeds the retries: setting'
       )
     end
@@ -714,7 +719,7 @@ class TestBazaRbEdge < Minitest::Test
 
   private
 
-  def with_sinatra_server
+  def with_sinatra
     Dir.mktmpdir do |dir|
       app = File.join(dir, 'app.rb')
       File.write(
@@ -738,13 +743,13 @@ class TestBazaRbEdge < Minitest::Test
             break if Typhoeus::Request.get("http://#{host}:#{port}").code == 200
             sleep(0.1)
           end
-          yield BazaRb.new(host, port, '0000-0000-0000', ssl: false)
+          yield(BazaRb.new(host, port, '0000-0000-0000', ssl: false))
         end
       end
     end
   end
 
-  def with_http_server(code, response, opts = {})
+  def with_http(code, response, opts = {})
     opts = { ssl: false, timeout: 1 }.merge(opts)
     WebMock.enable_net_connect!
     req = WEBrick::HTTPRequest.new(WEBrick::Config::HTTP)
@@ -758,13 +763,13 @@ class TestBazaRbEdge < Minitest::Test
           body = req.body
           len = req.header['content-length'].first.to_i
           if body.nil? || len == body.size
-            socket.puts "HTTP/1.1 #{code} OK\r\nContent-Length: #{response.length}\r\n\r\n#{response}"
+            socket.puts("HTTP/1.1 #{code} OK\r\nContent-Length: #{response.length}\r\n\r\n#{response}")
           else
-            socket.puts "HTTP/1.1 400 Bad Request\r\n"
+            socket.puts("HTTP/1.1 400 Bad Request\r\n")
           end
           socket.close
         end
-      yield BazaRb.new(host, port, '0000', **opts)
+      yield(BazaRb.new(host, port, '0000', **opts))
       t.terminate
       assert(t.join(1))
     end
