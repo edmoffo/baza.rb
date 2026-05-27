@@ -312,6 +312,27 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Reproduces zerocracy/baza.rb#303: BazaRb#enter wrapped the GET cache check,
+  # the user block, and the POST in a single retry region. When the POST timed
+  # out, the outer retry re-entered the whole block and ran the user's yield
+  # again. The block must execute exactly once per enter() call, even when the
+  # POST fails transiently.
+  def test_enter_yields_once_on_post_timeout
+    WebMock.disable_net_connect!
+    stub_request(:get, %r{https://example\.org:443/result}).to_return(status: 204, body: '')
+    stub_request(:get, 'https://example.org:443/csrf').to_return(body: 'token')
+    stub_request(:post, %r{https://example\.org:443/valves}).to_timeout
+    yields = 0
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false, timeout: 0.1, retries: 3, pause: 0)
+    assert_raises(BazaRb::TimedOut) do
+      baza.enter('simple', 'bar', 'no reason', 42) do
+        yields += 1
+        'result'
+      end
+    end
+    assert_equal(1, yields, 'the user block must be invoked exactly once')
+  end
+
   def test_download_rejects_malformed_total_size
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
