@@ -47,11 +47,16 @@ class TestBazaLive < Minitest::Test
     assert(LIVE.name_exists?(n))
     assert_predicate(LIVE.recent(n), :positive?)
     id = LIVE.recent(n)
-    assert(
-      wait_for(8 * 60) do
+    started = Time.now
+    done =
+      wait_for(2 * 60) do
         sleep(5)
         LIVE.finished?(id)
       end
+    assert(
+      done,
+      "Job ##{id} (#{n.inspect}) did not finish in #{(Time.now - started).round}s at #{HOST}, " \
+      'which most probably means it got stuck on the Zerocracy platform and never completed'
     )
     refute_nil(LIVE.pull(id))
     refute_nil(LIVE.stdout(id))
