@@ -154,6 +154,18 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_durable_load_reports_invalid_content_range_without_hyphen
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'loaded.txt')
+      stub_request(:get, 'https://example.org:443/durables/42')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x', headers: { 'Content-Range' => 'bytes 0/10' })
+      error = assert_raises(RuntimeError) { fake_baza.durable_load(42, file) }
+      assert_includes(error.message, 'Range is not valid ("0")')
+    end
+  end
+
   def test_durable_load_with_broken_compression
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
@@ -297,6 +309,21 @@ class TestBazaRbEdge < Minitest::Test
       baza.send(:download, baza.send(:home).append('file'), file)
       assert_equal('success content', File.read(file))
       assert_requested(:get, 'https://example.org:443/file', times: 2)
+    end
+  end
+
+  def test_download_rejects_malformed_total_size
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'download.txt')
+      stub_request(:get, 'https://example.org:443/file')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x', headers: { 'Content-Range' => 'bytes 0-0/*malformed' })
+      error =
+        assert_raises(RuntimeError) do
+          fake_baza.send(:download, fake_baza.send(:home).append('file'), file)
+        end
+      assert_includes(error.message, 'Total size is not valid ("*malformed")')
     end
   end
 

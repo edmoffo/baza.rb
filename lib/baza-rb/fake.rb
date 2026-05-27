@@ -94,8 +94,7 @@ class BazaRb::Fake
   # @param [String] owner The owner of the lock (any string)
   def lock(name, owner)
     assert_name(name)
-    raise 'The "owner" of the lock is nil' if owner.nil?
-    raise 'The "owner" of the lock may not be empty' if owner.empty?
+    assert_owner(owner)
   end
 
   # Unlock the name.
@@ -104,8 +103,7 @@ class BazaRb::Fake
   # @param [String] owner The owner of the lock (any string)
   def unlock(name, owner)
     assert_name(name)
-    raise 'The "owner" of the lock is nil' if owner.nil?
-    raise 'The "owner" of the lock may not be empty' if owner.empty?
+    assert_owner(owner)
   end
 
   # Get the ID of the job by the name.
@@ -173,8 +171,7 @@ class BazaRb::Fake
   # @param [String] owner The owner of the lock
   def durable_lock(id, owner)
     assert_id(id)
-    raise 'The "owner" of the lock is nil' if owner.nil?
-    raise 'The "owner" of the lock may not be empty' if owner.empty?
+    assert_owner(owner)
   end
 
   # Unlock a single durable.
@@ -183,8 +180,7 @@ class BazaRb::Fake
   # @param [String] owner The owner of the lock
   def durable_unlock(id, owner)
     assert_id(id)
-    raise 'The "owner" of the lock is nil' if owner.nil?
-    raise 'The "owner" of the lock may not be empty' if owner.empty?
+    assert_owner(owner)
   end
 
   # Get current balance of the authenticated user.
@@ -199,12 +195,17 @@ class BazaRb::Fake
   # @param [String] recipient GitHub username of the recipient
   # @param [Float] amount The amount to transfer in ƶ (zents)
   # @param [String] summary The description/reason for the payment
+  # @param [Integer] job Optional job ID to associate with this transfer
   # @return [Integer] Always returns 42 as the fake receipt ID
-  def transfer(recipient, amount, summary, *)
-    raise "The recipient #{recipient.inspect} is not valid" unless recipient.match?(/^[a-zA-Z0-9-]+$/)
-    raise "The amount #{amount} must be a Float" unless amount.is_a?(Float)
-    raise "The amount #{amount} must be positive" unless amount.positive?
+  def transfer(recipient, amount, summary, job: nil)
+    raise 'The "recipient" is nil' if recipient.nil?
+    raise "The recipient #{recipient.inspect} is not valid" unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
+    raise 'The "amount" is nil' if amount.nil?
+    raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
+    raise 'The "summary" is nil' if summary.nil?
     raise "The summary #{summary.inspect} is empty" if summary.empty?
+    assert_id(job) unless job.nil?
     42
   end
 
@@ -217,8 +218,9 @@ class BazaRb::Fake
   # @return [Integer] Always returns 42 as the fake receipt ID
   def fee(tab, amount, summary, job)
     raise 'The "tab" is nil' if tab.nil?
-    raise "The amount #{amount} must be a Float" unless amount.is_a?(Float)
-    raise "The amount #{amount} must be positive" unless amount.positive?
+    raise 'The "amount" is nil' if amount.nil?
+    raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
     raise 'The "job" is nil' if job.nil?
     raise 'The "job" must be Integer' unless job.is_a?(Integer)
     raise 'The "summary" is nil' if summary.nil?
@@ -235,7 +237,7 @@ class BazaRb::Fake
   # @return [String] Always executes and returns the block's result
   def enter(name, badge, why, job)
     assert_name(name)
-    raise "The badge '#{badge}' is not valid" unless badge.match?(/^[a-zA-Z0-9_-]+$/)
+    raise "The badge '#{badge}' is not valid" unless badge.match?(/\A[a-zA-Z0-9_-]+\z/)
     raise 'The reason cannot be empty' if why.empty?
     assert_id(job) unless job.nil?
     yield
@@ -251,13 +253,19 @@ class BazaRb::Fake
   private
 
   def assert_name(name)
-    raise "The name #{name.inspect} is not valid" unless name.match?(/^[a-z0-9-]+$/)
+    raise "The name #{name.inspect} is not valid" unless name.match?(/\A[a-z0-9-]+\z/)
     raise "The name #{name.inspect} is too long" if name.length > 32
   end
 
   def assert_id(id)
     raise 'The ID must be an Integer' unless id.is_a?(Integer)
     raise 'The ID must be positive' unless id.positive?
+  end
+
+  def assert_owner(owner)
+    raise 'The "owner" of the lock is nil' if owner.nil?
+    raise 'The "owner" of the lock may not be empty' if owner.empty?
+    raise "The owner #{owner.inspect} is not valid" unless owner.match?(/\A.+\z/)
   end
 
   def assert_file(file)
