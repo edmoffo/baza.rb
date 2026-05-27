@@ -70,7 +70,7 @@ class TestFake < Minitest::Test
     baza.unlock('test-job', 'test-owner')
   end
 
-  def test_lock_unlock_accepts_owner_with_spaces_and_punctuation
+  def test_lock_unlock_accepts_any_non_empty_owner
     baza = BazaRb::Fake.new
     baza.lock('test-job', 'Jeff Lebowski')
     baza.unlock('test-job', 'jeff@example.com')
@@ -100,7 +100,7 @@ class TestFake < Minitest::Test
     end
   end
 
-  def test_durable_lock_unlock_accepts_owner_with_spaces_and_punctuation
+  def test_durable_lock_unlock_accepts_any_non_empty_owner
     baza = BazaRb::Fake.new
     baza.durable_lock(42, 'Jeff Lebowski')
     baza.durable_unlock(42, 'jeff@example.com')
@@ -231,12 +231,8 @@ class TestFake < Minitest::Test
     assert_equal("The badge 'test-badge\nBAD' is not valid", badge.message)
   end
 
-  def test_durable_lock_rejects_multiline_owner
-    err =
-      assert_raises(RuntimeError) do
-        BazaRb::Fake.new.durable_lock(42, "test-owner\nbad value")
-      end
-    assert_equal('The owner "test-owner\nbad value" is not valid', err.message)
+  def test_durable_lock_accepts_multiline_owner
+    BazaRb::Fake.new.durable_lock(42, "test-owner\nbad value")
   end
 
   def test_csrf
