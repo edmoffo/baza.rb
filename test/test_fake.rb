@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: MIT
 
 require_relative 'test__helper'
+
 require_relative '../lib/baza-rb/fake'
 
 # Test fake object.

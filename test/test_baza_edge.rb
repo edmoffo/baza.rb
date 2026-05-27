@@ -15,6 +15,7 @@ require 'stringio'
 require 'uri'
 require 'webrick'
 require_relative 'test__helper'
+
 require_relative '../lib/baza-rb'
 
 # Edge case tests using WebMock for implementation-specific behavior.

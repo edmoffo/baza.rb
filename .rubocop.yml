@@ -17,8 +17,6 @@ plugins:
   - rubocop-elegant
 Lint/NumberConversion:
   Enabled: false
-Style/RequireOrder:
-  Enabled: false
 Elegant/GoodMethodName:
   AllowedNames:
     - exit_code

@@ -29,8 +29,8 @@ require 'minitest/reporters'
 Minitest::Reporters.use!([Minitest::Reporters::SpecReporter.new])
 Minitest.load(:minitest_reporter)
 
-require 'webmock/minitest'
-require 'tempfile'
 require 'minitest/autorun'
+require 'tempfile'
+require 'webmock/minitest'
 
 ENV['RACK_ENV'] = 'test'

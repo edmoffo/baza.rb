@@ -6,8 +6,8 @@
 require 'factbase'
 require 'loog'
 require 'net/http'
-require 'qbash'
 require 'online'
+require 'qbash'
 require 'random-port'
 require 'securerandom'
 require 'shellwords'
@@ -17,6 +17,7 @@ require 'uri'
 require 'wait_for'
 require 'webrick'
 require_relative 'test__helper'
+
 require_relative '../lib/baza-rb'
 
 # Test.

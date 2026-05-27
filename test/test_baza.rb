@@ -7,7 +7,9 @@ require 'factbase'
 require 'loog'
 require 'securerandom'
 require_relative 'test__helper'
+
 require_relative 'pact_helper'
+
 require_relative '../lib/baza-rb'
 
 # Test.
