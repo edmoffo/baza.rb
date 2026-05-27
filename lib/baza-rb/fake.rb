@@ -263,8 +263,9 @@ class BazaRb::Fake
   end
 
   def checkowner(owner)
-    raise(RuntimeError, "The owner #{owner.inspect} is not valid") unless owner.match?(/\A[a-zA-Z0-9-]+\z/)
-    raise(RuntimeError, "The owner #{owner.inspect} is too long") if owner.length > 64
+    raise(RuntimeError, 'The "owner" of the lock is nil') if owner.nil?
+    raise(RuntimeError, 'The "owner" of the lock may not be empty') if owner.empty?
+    raise(RuntimeError, "The owner #{owner.inspect} is not valid") unless owner.match?(/\A.+\z/)
   end
 
   def checkfile(file)

@@ -54,6 +54,12 @@ class TestFake < Minitest::Test
     baza.unlock('test-job', 'test-owner')
   end
 
+  def test_lock_unlock_accepts_any_non_empty_owner
+    baza = BazaRb::Fake.new
+    baza.lock('test-job', 'Jeff Lebowski')
+    baza.unlock('test-job', 'jeff@example.com')
+  end
+
   def test_recent
     assert_equal(42, BazaRb::Fake.new.recent('test-job'))
   end
@@ -73,6 +79,12 @@ class TestFake < Minitest::Test
       baza.durable_lock(42, 'test-owner')
       baza.durable_unlock(42, 'test-owner')
     end
+  end
+
+  def test_durable_lock_unlock_any_owner
+    baza = BazaRb::Fake.new
+    baza.durable_lock(42, 'Jeff Lebowski')
+    baza.durable_unlock(42, 'jeff@example.com')
   end
 
   def test_durable_save_accepts_chunk_size_kwarg
