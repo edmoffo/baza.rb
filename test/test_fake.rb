@@ -231,8 +231,12 @@ class TestFake < Minitest::Test
     assert_equal("The badge 'test-badge\nBAD' is not valid", badge.message)
   end
 
-  def test_durable_lock_accepts_multiline_owner
-    BazaRb::Fake.new.durable_lock(42, "test-owner\nbad value")
+  def test_durable_lock_rejects_multiline_owner
+    err =
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.durable_lock(42, "test-owner\nbad value")
+      end
+    assert_equal('The owner "test-owner\nbad value" is not valid', err.message)
   end
 
   def test_csrf
