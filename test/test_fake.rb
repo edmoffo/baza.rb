@@ -81,7 +81,7 @@ class TestFake < Minitest::Test
     end
   end
 
-  def test_durable_lock_unlock_accepts_any_non_empty_owner
+  def test_durable_lock_unlock_any_owner
     baza = BazaRb::Fake.new
     baza.durable_lock(42, 'Jeff Lebowski')
     baza.durable_unlock(42, 'jeff@example.com')
