@@ -195,12 +195,17 @@ class BazaRb::Fake
   # @param [String] recipient GitHub username of the recipient
   # @param [Float] amount The amount to transfer in ƶ (zents)
   # @param [String] summary The description/reason for the payment
+  # @param [Integer] job Optional job ID to associate with this transfer
   # @return [Integer] Always returns 42 as the fake receipt ID
-  def transfer(recipient, amount, summary, *)
+  def transfer(recipient, amount, summary, job: nil)
+    raise 'The "recipient" is nil' if recipient.nil?
     raise "The recipient #{recipient.inspect} is not valid" unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
-    raise "The amount #{amount} must be a Float" unless amount.is_a?(Float)
-    raise "The amount #{amount} must be positive" unless amount.positive?
+    raise 'The "amount" is nil' if amount.nil?
+    raise 'The "amount" must be Float' unless amount.is_a?(Float)
+    raise 'The "amount" must be positive' unless amount.positive?
+    raise 'The "summary" is nil' if summary.nil?
     raise "The summary #{summary.inspect} is empty" if summary.empty?
+    assert_id(job) unless job.nil?
     42
   end
 

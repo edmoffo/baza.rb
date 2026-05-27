@@ -131,6 +131,50 @@ class TestFake < Minitest::Test
     assert_equal('The recipient "recipient\nbad value" is not valid', err.message)
   end
 
+  def test_transfer_accepts_job_kwarg
+    receipt_id = BazaRb::Fake.new.transfer('recipient', 1.0, 'test-payment', job: 42)
+    assert_equal(42, receipt_id)
+  end
+
+  def test_transfer_rejects_unknown_keyword
+    assert_raises(ArgumentError) do
+      BazaRb::Fake.new.transfer('recipient', 1.0, 'test-payment', other: 42)
+    end
+  end
+
+  def test_transfer_rejects_invalid_job
+    error =
+      assert_raises(RuntimeError) do
+        BazaRb::Fake.new.transfer('recipient', 1.0, 'test-payment', job: '42')
+      end
+    assert_equal('The ID must be an Integer', error.message)
+  end
+
+  def test_transfer_rejects_nil_recipient
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.transfer(nil, 1.0, 'test-payment') }
+    assert_equal('The "recipient" is nil', error.message)
+  end
+
+  def test_transfer_rejects_nil_amount
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', nil, 'test-payment') }
+    assert_equal('The "amount" is nil', error.message)
+  end
+
+  def test_transfer_rejects_non_float_amount
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', 1, 'test-payment') }
+    assert_equal('The "amount" must be Float', error.message)
+  end
+
+  def test_transfer_rejects_negative_amount
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', -1.0, 'test-payment') }
+    assert_equal('The "amount" must be positive', error.message)
+  end
+
+  def test_transfer_rejects_nil_summary
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.transfer('recipient', 1.0, nil) }
+    assert_equal('The "summary" is nil', error.message)
+  end
+
   def test_pays_fee
     baza = BazaRb::Fake.new
     receipt_id = baza.fee('unknown', 43.0, 'for fun', 44)
