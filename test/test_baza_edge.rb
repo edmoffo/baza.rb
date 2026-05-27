@@ -452,16 +452,16 @@ class TestBazaRbEdge < Minitest::Test
         )
       baza.__send__(:download, baza.__send__(:home).append('file'), file)
       assert_equal('file content', File.read(file), 'File should be downloaded correctly')
-      file2 = File.join(dir, 'test2.txt')
-      stub_request(:get, "https://#{other}:443/file2")
+      second = File.join(dir, 'test2.txt')
+      stub_request(:get, "https://#{other}:443/second")
         .with(headers: { 'Range' => 'bytes=0-' })
         .to_return(
           status: 200,
           body: 'second file',
           headers: {}
         )
-      baza.__send__(:download, baza.__send__(:home).append('file2'), file2)
-      assert_equal('second file', File.read(file2), 'Second request should go to new host')
+      baza.__send__(:download, baza.__send__(:home).append('second'), second)
+      assert_equal('second file', File.read(second), 'Second request should go to new host')
     end
   end
 
@@ -509,8 +509,8 @@ class TestBazaRbEdge < Minitest::Test
           headers: { 'X-Zerocracy-Host' => other }
         )
       baza.__send__(:upload, baza.__send__(:home).append('file'), file)
-      stub_request(:put, "https://#{other}:443/file2").to_return(status: 200, body: 'OK')
-      baza.__send__(:upload, baza.__send__(:home).append('file2'), file)
+      stub_request(:put, "https://#{other}:443/second").to_return(status: 200, body: 'OK')
+      baza.__send__(:upload, baza.__send__(:home).append('second'), file)
     end
   end
 

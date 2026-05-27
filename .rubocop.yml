@@ -29,9 +29,6 @@ Elegant/GoodMethodName:
     - durable_find
   Exclude:
     - 'test/**/*'
-Elegant/GoodVariableName:
-  Exclude:
-    - 'test/**/*'
 Elegant/ClassInModule:
   Exclude:
     - 'lib/**/*'

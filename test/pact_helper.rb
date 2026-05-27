@@ -158,8 +158,8 @@ FileUtils.mkdir_p(PACT_LOG_DIR)
 module PactV2Minitest
   include Pact::V2::Matchers
 
-  def pact_config
-    @pact_config ||= Pact::V2::Consumer::PactConfig.new(
+  def config
+    @config ||= Pact::V2::Consumer::PactConfig.new(
       :http,
       consumer_name: 'BazaRb',
       provider_name: 'Zerocracy',
@@ -172,23 +172,19 @@ module PactV2Minitest
   end
 
   def interaction(description = nil)
-    pact_config.new_interaction(description)
+    config.new_interaction(description)
   end
 
   def execute_pact
-    server = Pact::V2::Consumer::MockServer.create_for_http!(
-      pact: pact_config.pact_handle,
-      host: '127.0.0.1',
-      port: 0
-    )
+    server = Pact::V2::Consumer::MockServer.create_for_http!(pact: config.pact_handle, host: '127.0.0.1', port: 0)
     yield(server)
   ensure
     if server&.matched?
-      server.write_pacts!(pact_config.pact_dir)
+      server.write_pacts!(config.pact_dir)
     elsif server
       raise(RuntimeError, "Pact mismatch: #{server.mismatches}")
     end
     server&.cleanup
-    pact_config.reset_pact
+    config.reset_pact
   end
 end

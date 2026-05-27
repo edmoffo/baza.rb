@@ -35,7 +35,7 @@ class TestBazaLive < Minitest::Test
 
   def test_live_full_cycle
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     fb.insert
@@ -63,13 +63,13 @@ class TestBazaLive < Minitest::Test
 
   def test_live_whoami
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     refute_nil(LIVE.whoami)
   end
 
   def test_live_balance
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     z = LIVE.balance
     refute_nil(z)
     assert(z.to_f)
@@ -77,13 +77,13 @@ class TestBazaLive < Minitest::Test
 
   def test_live_fee_payment
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     refute_nil(LIVE.fee('unknown', 0.007, 'just for fun', 777))
   end
 
   def test_live_push_no_compression
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     fb.insert
@@ -92,7 +92,7 @@ class TestBazaLive < Minitest::Test
 
   def test_live_durable_lock_unlock
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'before.bin')
       before = 'hello, Джеф!' * 10
@@ -116,7 +116,7 @@ class TestBazaLive < Minitest::Test
 
   def test_live_enter_valve
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     r = 'something'
     n = fake_name
     badge = fake_name
@@ -126,7 +126,7 @@ class TestBazaLive < Minitest::Test
 
   def test_get_csrf_token
     WebMock.enable_net_connect!
-    skip('We are offline') unless we_are_online?
+    skip('We are offline') unless connected?
     assert_operator(LIVE.csrf.length, :>, 10)
   end
 
@@ -134,7 +134,7 @@ class TestBazaLive < Minitest::Test
     "fake#{SecureRandom.hex(8)}"
   end
 
-  def we_are_online?
-    @we_are_online ||= !ARGV.include?('--offline') && online?
+  def connected?
+    @connected ||= !ARGV.include?('--offline') && online?
   end
 end
