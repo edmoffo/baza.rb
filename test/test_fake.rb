@@ -137,6 +137,21 @@ class TestFake < Minitest::Test
     assert_equal(42, receipt_id)
   end
 
+  def test_fee_raises_when_amount_is_nil
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', nil, 'for fun', 44) }
+    assert_equal('The "amount" is nil', error.message)
+  end
+
+  def test_fee_raises_when_amount_is_not_float
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 43, 'for fun', 44) }
+    assert_equal('The "amount" must be Float', error.message)
+  end
+
+  def test_fee_raises_when_amount_is_not_positive
+    error = assert_raises(RuntimeError) { BazaRb::Fake.new.fee('unknown', 0.0, 'for fun', 44) }
+    assert_equal('The "amount" must be positive', error.message)
+  end
+
   def test_enter
     baza = BazaRb::Fake.new
     result =
