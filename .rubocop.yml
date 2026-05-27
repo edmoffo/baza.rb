@@ -27,8 +27,8 @@ Elegant/GoodMethodName:
     - durable_lock
     - durable_unlock
     - durable_find
-  Exclude:
-    - 'test/**/*'
+    - format_value
+    - will_respond_with
 Elegant/ClassInModule:
   Exclude:
     - 'lib/**/*'

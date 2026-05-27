@@ -70,8 +70,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^[a-z0-9-]+$/, 'jeff'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      assert_equal('jeff', baza_client(server.port).whoami)
+    execute do |server|
+      assert_equal('jeff', client(server.port).whoami)
     end
   end
 
@@ -86,8 +86,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^[0-9]+\.[0-9]+$/, '42.33'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      assert_in_delta(42.33, baza_client(server.port).balance)
+    execute do |server|
+      assert_in_delta(42.33, client(server.port).balance)
     end
   end
 
@@ -120,8 +120,8 @@ class TestBazaRb < Minitest::Test
         status: 302,
         headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '42') }
       )
-    execute_pact do |server|
-      assert_equal(42, baza_client(server.port).transfer('jeff', 42.50, 'for fun'))
+    execute do |server|
+      assert_equal(42, client(server.port).transfer('jeff', 42.50, 'for fun'))
     end
   end
 
@@ -157,8 +157,8 @@ class TestBazaRb < Minitest::Test
         status: 302,
         headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '8789') }
       )
-    execute_pact do |server|
-      assert_equal(8789, baza_client(server.port).transfer('jeff', 42.50, 'for fun', job: 555))
+    execute do |server|
+      assert_equal(8789, client(server.port).transfer('jeff', 42.50, 'for fun', job: 555))
     end
   end
 
@@ -195,8 +195,8 @@ class TestBazaRb < Minitest::Test
         status: 302,
         headers: { 'X-Zerocracy-ReceiptId' => match_regex(/^[1-9][0-9]*$/, '9898') }
       )
-    execute_pact do |server|
-      assert_equal(9898, baza_client(server.port).fee('unknown', 42.77, 'the summary', 776))
+    execute do |server|
+      assert_equal(9898, client(server.port).fee('unknown', 42.77, 'the summary', 776))
     end
   end
 
@@ -215,8 +215,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^(yes|started .+)$/, 'yes'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      assert(baza_client(server.port).finished?(542))
+    execute do |server|
+      assert(client(server.port).finished?(542))
     end
   end
 
@@ -236,8 +236,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^(|done|.+)$/, 'done'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      assert(baza_client(server.port).verified(513))
+    execute do |server|
+      assert(client(server.port).verified(513))
     end
   end
 
@@ -266,8 +266,8 @@ class TestBazaRb < Minitest::Test
         }
       )
       .will_respond_with(status: 302)
-    execute_pact do |server|
-      baza_client(server.port).lock('pact1', 'the-owner')
+    execute do |server|
+      client(server.port).lock('pact1', 'the-owner')
     end
   end
 
@@ -297,8 +297,8 @@ class TestBazaRb < Minitest::Test
         }
       )
       .will_respond_with(status: 302)
-    execute_pact do |server|
-      assert(baza_client(server.port).unlock('pact25', 'Jeff Lebowski'))
+    execute do |server|
+      assert(client(server.port).unlock('pact25', 'Jeff Lebowski'))
     end
   end
 
@@ -323,8 +323,8 @@ class TestBazaRb < Minitest::Test
           'X-Zerocracy-JobId' => match_regex(/^[0-9]+$/, '890')
         }
       )
-    execute_pact do |server|
-      baza_client(server.port).push('pact72', Factbase.new.export, [])
+    execute do |server|
+      client(server.port).push('pact72', Factbase.new.export, [])
     end
   end
 
@@ -343,8 +343,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^[1-9][0-9]*$/, '124'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      assert_equal(124, baza_client(server.port).recent('pact61'))
+    execute do |server|
+      assert_equal(124, client(server.port).recent('pact61'))
     end
   end
 
@@ -362,8 +362,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^.+$/, 'yes'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      assert(baza_client(server.port).name_exists?('pact74'))
+    execute do |server|
+      assert(client(server.port).name_exists?('pact74'))
     end
   end
 
@@ -382,8 +382,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^[0-9]+$/, '0'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      assert_predicate(baza_client(server.port).exit_code(94), :zero?)
+    execute do |server|
+      assert_predicate(client(server.port).exit_code(94), :zero?)
     end
   end
 
@@ -403,8 +403,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^.+$/, body),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      assert_equal(body, baza_client(server.port).stdout(17).force_encoding('UTF-8'))
+    execute do |server|
+      assert_equal(body, client(server.port).stdout(17).force_encoding('UTF-8'))
     end
   end
 
@@ -423,8 +423,8 @@ class TestBazaRb < Minitest::Test
         path: match_regex(%r{^/pull/[1-9][0-9]*\.fb$}, '/pull/47.fb')
       )
       .will_respond_with(status: match_status_code('success'))
-    execute_pact do |server|
-      assert(baza_client(server.port).pull(47))
+    execute do |server|
+      assert(client(server.port).pull(47))
     end
   end
 
@@ -454,8 +454,8 @@ class TestBazaRb < Minitest::Test
         }
       )
       .will_respond_with(status: 409)
-    execute_pact do |server|
-      baza = baza_client(server.port)
+    execute do |server|
+      baza = client(server.port)
       assert_raises(StandardError) { baza.lock('pact2', 'Donald Trump') }
     end
   end
@@ -471,8 +471,8 @@ class TestBazaRb < Minitest::Test
         path: match_regex(%r{^/durables/[1-9][0-9]*$}, '/durables/427')
       )
       .will_respond_with(status: match_status_code('success'))
-    execute_pact do |server|
-      baza = baza_client(server.port)
+    execute do |server|
+      baza = client(server.port)
       Dir.mktmpdir do |dir|
         file = File.join(dir, 'loaded.txt')
         baza.durable_load(427, file)
@@ -496,8 +496,8 @@ class TestBazaRb < Minitest::Test
         status: match_status_code('success'),
         body: ''
       )
-    execute_pact do |server|
-      baza = baza_client(server.port)
+    execute do |server|
+      baza = client(server.port)
       Dir.mktmpdir do |dir|
         file = File.join(dir, 'loaded.txt')
         baza.durable_load(54, file)
@@ -532,8 +532,8 @@ class TestBazaRb < Minitest::Test
         }
       )
       .will_respond_with(status: 302)
-    execute_pact do |server|
-      baza_client(server.port).durable_lock(65, 'the-owner')
+    execute do |server|
+      client(server.port).durable_lock(65, 'the-owner')
     end
   end
 
@@ -564,8 +564,8 @@ class TestBazaRb < Minitest::Test
         }
       )
       .will_respond_with(status: 302)
-    execute_pact do |server|
-      baza_client(server.port).durable_unlock(52, 'Robert DeNiro')
+    execute do |server|
+      client(server.port).durable_unlock(52, 'Robert DeNiro')
     end
   end
 
@@ -591,8 +591,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^.+$/, 'thanks!'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      baza = baza_client(server.port)
+    execute do |server|
+      baza = client(server.port)
       Dir.mktmpdir do |dir|
         file = File.join(dir, 'tmp.txt')
         File.binwrite(file, body)
@@ -618,8 +618,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^.+$/, 'before'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      baza = baza_client(server.port)
+    execute do |server|
+      baza = client(server.port)
       assert_equal('before', baza.enter('foo', 'bar', 'no reason', 188) { 'after' })
     end
   end
@@ -668,8 +668,8 @@ class TestBazaRb < Minitest::Test
         }
       )
       .will_respond_with(status: 302)
-    execute_pact do |server|
-      baza = baza_client(server.port)
+    execute do |server|
+      baza = client(server.port)
       assert_equal('after', baza.enter('pact9', 'bar', 'no reason', 183) { 'after' })
     end
   end
@@ -693,8 +693,8 @@ class TestBazaRb < Minitest::Test
         body: match_regex(/^[1-9][0-9]*$/, '32'),
         headers: { 'Content-Type' => 'text/plain' }
       )
-    execute_pact do |server|
-      assert_equal(32, baza_client(server.port).durable_find('pact10', 'bar.txt'))
+    execute do |server|
+      assert_equal(32, client(server.port).durable_find('pact10', 'bar.txt'))
     end
   end
 
@@ -713,14 +713,14 @@ class TestBazaRb < Minitest::Test
         }
       )
       .will_respond_with(status: 404)
-    execute_pact do |server|
-      assert_nil(baza_client(server.port).durable_find('pact11', 'bar.txt'))
+    execute do |server|
+      assert_nil(client(server.port).durable_find('pact11', 'bar.txt'))
     end
   end
 
   private
 
-  def baza_client(port, pause: 1)
+  def client(port, pause: 1)
     BazaRb.new('127.0.0.1', port, '000', ssl: false, loog: Loog::NULL, compress: false, pause:)
   end
 end

@@ -34,7 +34,7 @@ module Pact
           JSON.dump(obj)
         end
 
-        def matcher_rules(matcher)
+        def matchers(matcher)
           JSON.dump(
             'body' => {
               '$' => {
@@ -52,20 +52,20 @@ module Pact
           )
         end
 
-        def extract_value(val)
+        def extract(val)
           return val['value'] if val.is_a?(Hash) && val.key?('value')
           val
         end
 
-        def format_form(hash)
+        def urlencode(hash)
           InteractionContents.basic(hash).map do |key, val|
-            "#{key}=#{extract_value(val)}"
+            "#{key}=#{extract(val)}"
           end.join('&')
         end
 
-        def write_body(part, headers, body, type)
+        def write(part, headers, body, type)
           if type.include?('x-www-form-urlencoded')
-            PactFfi.with_body(@pact_interaction, part, type, format_form(body))
+            PactFfi.with_body(@pact_interaction, part, type, urlencode(body))
           elsif body.is_a?(String) && body.encoding == Encoding::ASCII_8BIT
             bin = headers['Content-Type'] || headers['content-type'] || 'application/octet-stream'
             ptr = FFI::MemoryPointer.new(:char, body.bytesize)
@@ -114,7 +114,7 @@ module Pact
             PactFfi.with_header_v2(@pact_interaction, part, key.to_s, 0, format_value(val))
           end
           return self unless body
-          write_body(part, headers, body, headers['Content-Type'] || headers['content-type'] || 'application/json')
+          write(part, headers, body, headers['Content-Type'] || headers['content-type'] || 'application/json')
           self
         end
 
@@ -136,7 +136,7 @@ module Pact
             PactFfi.with_body(@pact_interaction, part, type || 'text/plain', body)
           elsif body.is_a?(Pact::V2::Matchers::Base) && type && !type.include?('json')
             PactFfi.with_body(@pact_interaction, part, type, body.as_basic['value'].to_s)
-            PactFfi.with_matching_rules(@pact_interaction, part, matcher_rules(body))
+            PactFfi.with_matching_rules(@pact_interaction, part, matchers(body))
           elsif body.is_a?(Pact::V2::Matchers::Base)
             PactFfi.with_body(@pact_interaction, part, 'application/json', format_value(body))
           else
@@ -175,7 +175,7 @@ module PactV2Minitest
     config.new_interaction(description)
   end
 
-  def execute_pact
+  def execute
     server = Pact::V2::Consumer::MockServer.create_for_http!(pact: config.pact_handle, host: '127.0.0.1', port: 0)
     yield(server)
   ensure

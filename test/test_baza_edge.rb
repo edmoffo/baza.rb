@@ -53,7 +53,7 @@ class TestBazaRbEdge < Minitest::Test
     WebMock.enable_net_connect!
     assert_equal(
       "baza.rb #{BazaRb::VERSION}",
-      with_http_server(200, 'yes') { |baza| baza.name_exists?('simple') }['user-agent']
+      with_http(200, 'yes') { |baza| baza.name_exists?('simple') }['user-agent']
     )
   end
 
@@ -61,7 +61,7 @@ class TestBazaRbEdge < Minitest::Test
     WebMock.enable_net_connect!
     assert_equal(
       'Ym9vbSE= 0YXQtdC5IQ==',
-      with_http_server(200, 'yes') do |baza|
+      with_http(200, 'yes') do |baza|
         baza.push('simple', 'hello, world!', ['boom!', 'хей!'])
       end['x-zerocracy-meta']
     )
@@ -70,7 +70,7 @@ class TestBazaRbEdge < Minitest::Test
   def test_push_with_big_meta
     WebMock.enable_net_connect!
     assert(
-      with_http_server(200, 'yes') do |baza|
+      with_http(200, 'yes') do |baza|
         baza.push(
           'simple',
           'hello, world!',
@@ -89,7 +89,7 @@ class TestBazaRbEdge < Minitest::Test
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     req =
-      with_http_server(200, 'yes') do |baza|
+      with_http(200, 'yes') do |baza|
         baza.push('simple', fb.export, %w[meta1 meta2 meta3])
       end
     assert_equal('application/zip', req.content_type)
@@ -102,7 +102,7 @@ class TestBazaRbEdge < Minitest::Test
     fb = Factbase.new
     fb.insert.foo = 'test-' * 10_000
     req =
-      with_http_server(200, 'yes', compress: false) do |baza|
+      with_http(200, 'yes', compress: false) do |baza|
         baza.push('simple', fb.export, %w[meta1 meta2 meta3])
       end
     assert_equal('application/octet-stream', req.content_type)
@@ -152,7 +152,7 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
-  def test_durable_load_reports_invalid_content_range_without_hyphen
+  def test_durable_load_rejects_range_without_hyphen
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'loaded.txt')
@@ -178,7 +178,7 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
-  def test_checked_with_500_error
+  def test_checked_with_internal_error
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
@@ -196,7 +196,7 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(error.message, 'mark-500')
   end
 
-  def test_checked_with_503_error
+  def test_checked_with_unavailable
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
@@ -220,7 +220,7 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(error.message, 'mark-503')
   end
 
-  def test_checked_with_404_error
+  def test_checked_with_not_found
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
@@ -236,7 +236,7 @@ class TestBazaRbEdge < Minitest::Test
     assert_includes(error.message, 'most probably you are trying to reach a wrong server')
   end
 
-  def test_checked_with_0_error
+  def test_checked_with_zero_code
     WebMock.disable_net_connect!
     stub_request(:get, 'https://example.org:443/test')
       .with(headers: { 'X-Zerocracy-Token' => '000' })
@@ -373,7 +373,7 @@ class TestBazaRbEdge < Minitest::Test
   # request (e.g. nginx returns 499 "Client Closed Request" after a load-balancer
   # timeout), the failure is server-side from the client's point of view and
   # should be retried, just like 5xx responses.
-  def test_upload_retries_on_499_failure
+  def test_upload_retries_on_client_close
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'upload.txt')
@@ -399,7 +399,7 @@ class TestBazaRbEdge < Minitest::Test
   # :partial_file), BazaRb#checked must raise something that BazaRb#attempt
   # will retry, so an upload doesn't abort the whole pipeline on the first
   # transient failure.
-  def test_checked_partial_file_response_is_retryable_by_retry_it
+  def test_checked_partial_file_is_retryable
     WebMock.disable_net_connect!
     fake = Typhoeus::Response.new(
       return_code: :partial_file,
@@ -428,7 +428,7 @@ class TestBazaRbEdge < Minitest::Test
   def test_durable_load_from_sinatra
     WebMock.enable_net_connect!
     Dir.mktmpdir do |dir|
-      with_sinatra_server do |baza|
+      with_sinatra do |baza|
         file = File.join(dir, 'x.txt')
         baza.durable_load(42, file)
         assert_equal("Hello, \xFF\xFE\x12!", File.read(file))
@@ -609,7 +609,7 @@ class TestBazaRbEdge < Minitest::Test
   # PUT replies "400 Bad Request" with an "Expecting chunk #N" hint in the
   # `X-Zerocracy-Flash` header. The client should restart the upload from
   # the chunk the server is asking for, instead of aborting the whole job.
-  def test_upload_restarts_when_server_loses_chunk_state
+  def test_upload_restarts_when_server_loses_chunk
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'large.txt')
@@ -647,7 +647,7 @@ class TestBazaRbEdge < Minitest::Test
   # `Expecting chunk #N` hint (for example a generic `Server out of disk`),
   # `BazaRb#upload` must re-raise the original `BazaRb::ServerFailure` on the
   # first PUT instead of entering the rewind loop.
-  def test_upload_raises_on_non_matching_flash_without_rewinding
+  def test_upload_raises_on_unmatched_flash
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
       file = File.join(dir, 'large.txt')
@@ -719,7 +719,7 @@ class TestBazaRbEdge < Minitest::Test
 
   private
 
-  def with_sinatra_server
+  def with_sinatra
     Dir.mktmpdir do |dir|
       app = File.join(dir, 'app.rb')
       File.write(
@@ -749,7 +749,7 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
-  def with_http_server(code, response, opts = {})
+  def with_http(code, response, opts = {})
     opts = { ssl: false, timeout: 1 }.merge(opts)
     WebMock.enable_net_connect!
     req = WEBrick::HTTPRequest.new(WEBrick::Config::HTTP)
