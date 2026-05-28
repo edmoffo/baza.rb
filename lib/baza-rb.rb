@@ -109,6 +109,7 @@ class BazaRb
     raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
     raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
     raise(RuntimeError, 'The "meta" of the job is nil') if meta.nil?
+    raise(RuntimeError, 'The "meta" of the job must be an Array') unless meta.is_a?(Array)
     elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|
         File.binwrite(file.path, data)
