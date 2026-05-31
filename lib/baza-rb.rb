@@ -108,6 +108,7 @@ class BazaRb
     raise(RuntimeError, 'The "name" of the job is nil') if pname.nil?
     raise(RuntimeError, 'The "name" of the job may not be empty') if pname.empty?
     raise(RuntimeError, 'The "data" of the job is nil') if data.nil?
+    raise(RuntimeError, 'The "data" of the job may not be empty') if data.empty?
     raise(RuntimeError, 'The "meta" of the job is nil') if meta.nil?
     elapsed(@loog, level: Logger::INFO) do
       Tempfile.open do |file|

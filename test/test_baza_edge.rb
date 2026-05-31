@@ -521,6 +521,13 @@ class TestBazaRbEdge < Minitest::Test
     )
   end
 
+  def test_push_raises_when_data_is_empty
+    assert_equal(
+      'The "data" of the job may not be empty',
+      assert_raises(RuntimeError) { fake_baza.push('pname', '', []) }.message
+    )
+  end
+
   def test_transfer_raises_when_amount_is_not_positive
     [0.0, -1.0, -0.000001].each do |amount|
       assert_equal(
