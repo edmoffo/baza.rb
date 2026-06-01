@@ -603,7 +603,7 @@ class BazaRb
   # @yield The block to execute with retries
   # @return [Object] The result of the block execution
   def attempt(&)
-    with_retries(max_tries: @retries, rescue: TimedOut, &)
+    with_retries(max_tries: @retries + 1, rescue: TimedOut, &)
   end
 
   # Execute a block with retries on 429 status codes.

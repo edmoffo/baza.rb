@@ -290,6 +290,23 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  # Reproduces zerocracy/baza.rb#341: BazaRb#attempt passed @retries to
+  # with_retries(max_tries:), so a retries: N configuration produced N-1
+  # retries on TimedOut while #await and #recover gave N retries on 429
+  # and >=499. After the fix, attempt allows @retries + 1 total tries to
+  # match the retry count semantics of the surrounding loops.
+  def test_attempt_total_tries_match_retries_plus_one
+    fast = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, retries: 3, pause: 0)
+    attempts = 0
+    assert_raises(BazaRb::TimedOut) do
+      fast.__send__(:attempt) do
+        attempts += 1
+        raise(BazaRb::TimedOut, 'simulated timeout')
+      end
+    end
+    assert_equal(4, attempts, 'attempt must run @retries + 1 total tries on a persistent TimedOut')
+  end
+
   # Reproduces zerocracy/baza.rb#289: BazaRb#download never retries on
   # timeout because checked() is called outside attempt. After the fix,
   # a libcurl operation_timedout on the first GET re-raises BazaRb::TimedOut
