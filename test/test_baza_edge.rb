@@ -84,6 +84,15 @@ class TestBazaRbEdge < Minitest::Test
     )
   end
 
+  def test_push_rejects_non_array_meta
+    assert_includes(
+      assert_raises(RuntimeError) do
+        fake_baza.push('simple', 'hello, world!', 'boom!')
+      end.message,
+      'The "meta" of the job must be an Array'
+    )
+  end
+
   def test_push_compressed_content
     WebMock.enable_net_connect!
     fb = Factbase.new
