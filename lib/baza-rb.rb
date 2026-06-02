@@ -797,18 +797,19 @@ class BazaRb
               [200, 206, 204, 302]
             )
           end
+        rheaders = ret.headers || {}
         msg = [
           "GET #{uri.to_uri.path} #{ret.code}",
           "#{slice.bytesize} bytes",
-          ('in gzip' if ret.headers['Content-Encoding'] == 'gzip'),
-          ("ranged as #{ret.headers['Content-Range'].inspect}" if ret.headers['Content-Range'])
+          ('in gzip' if rheaders['Content-Encoding'] == 'gzip'),
+          ("ranged as #{rheaders['Content-Range'].inspect}" if rheaders['Content-Range'])
         ]
         uri = rehost(ret, uri)
         if blanks.include?(ret.code)
           sleep(2)
           next
         end
-        if ret.headers['Content-Encoding'] == 'gzip'
+        if rheaders['Content-Encoding'] == 'gzip'
           begin
             slice = unzip(slice)
             msg << "unzipped to #{slice.bytesize} bytes"
@@ -822,8 +823,7 @@ class BazaRb
         end
         @loog.debug(msg.compact.join(', '))
         break if ret.code == 200
-        _, v = ret.headers['Content-Range'].split
-        range, total = v.split('/')
+        range, total = crange(rheaders)
         raise(RuntimeError, "Total size is not valid (#{total.inspect})") unless total.match?(/\A(?:\*|[0-9]+)\z/)
         _b, e = range.split('-', 2)
         raise(RuntimeError, "Range is not valid (#{range.inspect})") if e.nil?
@@ -831,10 +831,20 @@ class BazaRb
         break if e.to_i == total.to_i - 1
         break if total == '0'
         chunk += 1
-        sleep(1) if ret.headers['Content-Length'].to_i.zero?
+        sleep(1) if rheaders['Content-Length'].to_i.zero?
       end
       throw(:"Downloaded #{File.size(file)} bytes in #{chunk + 1} chunks from #{uri}")
     end
+  end
+
+  def crange(headers)
+    crange = headers['Content-Range']
+    raise(RuntimeError, 'Content-Range header is missing') if crange.nil?
+    _, value = crange.split
+    raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if value.nil?
+    range, total = value.split('/', 2)
+    raise(RuntimeError, "Content-Range is not valid (#{crange.inspect})") if total.nil?
+    [range, total]
   end
 
   # Upload file via PUT, using chunked uploads for large files.

@@ -167,6 +167,36 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_durable_load_rejects_missing_content_range
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'loaded.txt')
+      stub_request(:get, 'https://example.org:443/durables/42')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x')
+      assert_includes(
+        assert_raises(RuntimeError) do
+          fake_baza.durable_load(42, file)
+        end.message, 'Content-Range header is missing'
+      )
+    end
+  end
+
+  def test_durable_load_rejects_range_without_total
+    WebMock.disable_net_connect!
+    Dir.mktmpdir do |dir|
+      file = File.join(dir, 'loaded.txt')
+      stub_request(:get, 'https://example.org:443/durables/42')
+        .with(headers: { 'Range' => 'bytes=0-' })
+        .to_return(status: 206, body: 'x', headers: { 'Content-Range' => 'bytes 0-499' })
+      assert_includes(
+        assert_raises(RuntimeError) do
+          fake_baza.durable_load(42, file)
+        end.message, 'Content-Range is not valid ("bytes 0-499")'
+      )
+    end
+  end
+
   def test_durable_load_with_broken_compression
     WebMock.disable_net_connect!
     Dir.mktmpdir do |dir|
