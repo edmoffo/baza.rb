@@ -567,6 +567,28 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_transfer_raises_when_recipient_is_invalid
+    ['', "jeff\nbad", 'jeff@example.com'].each do |recipient|
+      assert_equal(
+        "The recipient #{recipient.inspect} is not valid",
+        assert_raises(RuntimeError) { fake_baza.transfer(recipient, 1.0, 'pay') }.message
+      )
+    end
+  end
+
+  def test_transfer_raises_when_summary_is_empty
+    assert_equal(
+      'The summary "" is empty',
+      assert_raises(RuntimeError) { fake_baza.transfer('jeff', 1.0, '') }.message
+    )
+  end
+
+  def test_transfer_raises_when_job_is_invalid
+    [['1', 'The ID must be an Integer'], [0, 'The ID must be positive']].each do |job, message|
+      assert_equal(message, assert_raises(RuntimeError) { fake_baza.transfer('jeff', 1.0, 'pay', job:) }.message)
+    end
+  end
+
   def test_fee_raises_when_amount_is_not_positive
     [0.0, -1.0, -0.000001].each do |amount|
       assert_equal(

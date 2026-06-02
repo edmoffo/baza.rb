@@ -420,10 +420,16 @@ class BazaRb
   # @raise [ServerFailure] If the transfer fails
   def transfer(recipient, amount, summary, job: nil)
     raise(RuntimeError, 'The "recipient" is nil') if recipient.nil?
+    raise(RuntimeError, "The recipient #{recipient.inspect} is not valid") unless recipient.match?(/\A[a-zA-Z0-9-]+\z/)
     raise(RuntimeError, 'The "amount" is nil') if amount.nil?
     raise(RuntimeError, 'The "amount" must be Float') unless amount.is_a?(Float)
     raise(RuntimeError, 'The "amount" must be positive') unless amount.positive?
     raise(RuntimeError, 'The "summary" is nil') if summary.nil?
+    raise(RuntimeError, "The summary #{summary.inspect} is empty") if summary.empty?
+    unless job.nil?
+      raise(RuntimeError, 'The ID must be an Integer') unless job.is_a?(Integer)
+      raise(RuntimeError, 'The ID must be positive') unless job.positive?
+    end
     id = nil
     body = { 'human' => recipient, 'amount' => format('%0.6f', amount), 'summary' => summary }
     body['job'] = job unless job.nil?
