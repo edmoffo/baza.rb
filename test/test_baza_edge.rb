@@ -101,7 +101,7 @@ class TestBazaRbEdge < Minitest::Test
       with_http(200, 'yes') do |baza|
         baza.push('simple', fb.export, %w[meta1 meta2 meta3])
       end
-    assert_equal('application/zip', req.content_type)
+    assert_equal('application/octet-stream', req.content_type)
     assert_equal('gzip', req['content-encoding'])
     assert_equal(fb.export, Zlib::GzipReader.zcat(StringIO.new(req.body)))
   end

@@ -586,13 +586,7 @@ class BazaRb
     body = io.string
     params.merge(
       body:,
-      headers: params.fetch(:headers).merge(
-        {
-          'Content-Type' => 'application/zip',
-          'Content-Encoding' => 'gzip',
-          'Content-Length' => body.bytesize
-        }
-      )
+      headers: params.fetch(:headers).merge({ 'Content-Encoding' => 'gzip', 'Content-Length' => body.bytesize })
     )
   end
 
