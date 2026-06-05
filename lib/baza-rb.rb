@@ -488,15 +488,13 @@ class BazaRb
   # @raise [ServerFailure] If the valve operation fails
   def enter(pname, badge, why, job)
     elapsed(@loog, good: "Entered valve #{badge} to #{pname}") do
-      attempt do
-        ret = get(home.append('result').add(badge:), [200, 204])
-        return ret.body if ret.code == 200
-        r = yield
-        uri = home.append('valves')
-        uri = uri.add(job:) unless job.nil?
-        post(uri, { 'badge' => badge, 'pname' => pname, 'result' => r.to_s, 'why' => why })
-        r
-      end
+      ret = get(home.append('result').add(badge:), [200, 204])
+      return ret.body if ret.code == 200
+      r = yield
+      uri = home.append('valves')
+      uri = uri.add(job:) unless job.nil?
+      post(uri, { 'badge' => badge, 'pname' => pname, 'result' => r.to_s, 'why' => why })
+      r
     end
   end
 

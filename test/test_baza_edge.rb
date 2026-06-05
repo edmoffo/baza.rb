@@ -801,6 +801,39 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_enter_yields_once_on_transient_post_failure
+    WebMock.disable_net_connect!
+    csrf = 'swordfish'
+    stub_request(:get, 'https://example.org:443/result?badge=test-badge').to_return(status: 204, body: '')
+    stub_request(:get, 'https://example.org:443/csrf').to_return(status: 200, body: csrf)
+    stub_request(:post, 'https://example.org:443/valves')
+      .with(
+        body: {
+          '_csrf' => csrf,
+          'badge' => 'test-badge',
+          'pname' => 'test',
+          'result' => 'computed',
+          'why' => 'testing'
+        }
+      )
+      .to_timeout.then
+      .to_return(status: 302, headers: {})
+    baza = BazaRb.new(
+      'example.org', 443, '000',
+      loog: Loog::NULL, compress: false, timeout: 0.1, retries: 2, pause: 0
+    )
+    yld = 0
+    assert_equal(
+      'computed',
+      baza.enter('test', 'test-badge', 'testing', nil) do
+        yld += 1
+        'computed'
+      end
+    )
+    assert_equal(1, yld, 'User block must yield exactly once')
+    assert_requested(:post, 'https://example.org:443/valves', times: 2)
+  end
+
   private
 
   def with_sinatra
