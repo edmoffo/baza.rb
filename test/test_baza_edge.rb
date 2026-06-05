@@ -101,7 +101,7 @@ class TestBazaRbEdge < Minitest::Test
       with_http(200, 'yes') do |baza|
         baza.push('simple', fb.export, %w[meta1 meta2 meta3])
       end
-    assert_equal('application/zip', req.content_type)
+    assert_equal('application/octet-stream', req.content_type)
     assert_equal('gzip', req['content-encoding'])
     assert_equal(fb.export, Zlib::GzipReader.zcat(StringIO.new(req.body)))
   end
@@ -116,6 +116,22 @@ class TestBazaRbEdge < Minitest::Test
       end
     assert_equal('application/octet-stream', req.content_type)
     assert_equal(fb.export, req.body)
+  end
+
+  def test_push_compressed_headers_are_correct
+    WebMock.disable_net_connect!
+    stub_request(:put, 'https://example.org:443/push/test-pname')
+      .with(
+        headers: {
+          'Content-Type' => 'application/octet-stream',
+          'Content-Encoding' => 'gzip'
+        }
+      )
+      .to_return(status: 200, body: '')
+    BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: true, timeout: 0.1, retries: 2).push(
+      'test-pname', 'some data', ['meta']
+    )
+    assert_requested(:put, 'https://example.org:443/push/test-pname', times: 1)
   end
 
   def test_with_very_short_timeout
