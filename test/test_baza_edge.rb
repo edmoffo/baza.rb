@@ -590,6 +590,27 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_rehost_is_thread_safe
+    baza = BazaRb.new('example.org', 443, '000', loog: Loog::NULL, compress: false)
+    candidates = (1..16).map { |i| "server#{i}.example.org" }
+    barrier = Queue.new
+    candidates.map do |name|
+      Thread.new do
+        barrier.pop
+        ret = Struct.new(:headers).new({ 'X-Zerocracy-Host' => name })
+        50.times { baza.__send__(:rehost, ret, baza.__send__(:home)) }
+      end
+    end.tap do |ts|
+      candidates.size.times { barrier << :go }
+      ts.each(&:join)
+    end
+    assert_includes(
+      candidates,
+      baza.instance_variable_get(:@host),
+      'rehost should leave @host at one of the candidate hostnames'
+    )
+  end
+
   def test_lock_raises_when_owner_is_empty
     assert_equal(
       'The "owner" of the lock may not be empty',
