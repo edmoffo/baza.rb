@@ -665,6 +665,13 @@ class TestBazaRbEdge < Minitest::Test
     end
   end
 
+  def test_fee_raises_when_summary_is_empty
+    assert_equal(
+      'The summary "" is empty',
+      assert_raises(RuntimeError) { fake_baza.fee('unknown', 1.0, '', 42) }.message
+    )
+  end
+
   def test_pull_raises_when_id_is_not_integer
     assert_equal('The ID of the job must be an Integer', assert_raises(RuntimeError) { fake_baza.pull(42.5) }.message)
   end
